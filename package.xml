@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-    <name>TODO_PACKAGE_NAME</name>
+    <name>yet_another_gps_publisher</name>
     <version>0.1.0</version>
     <description>A node template</description>
     <maintainer email="avealov@umich.edu">Andrew Ealovega</maintainer>
@@ -11,12 +11,12 @@
 
     <depend>rclcpp</depend>
 
-    <!--Messages TODO_EXTRA-->
+    <!--Messages yet_another_gps_publisher-->
     <depend>ackermann_msgs</depend>
     <depend>sensor_msgs</depend>
     <depend>std_msgs</depend>
 
-    <!--OpenCv Things TODO_EXTRA-->
+    <!--OpenCv Things yet_another_gps_publisher-->
     <depend>cv_bridge</depend>
     <depend>libopencv-dev</depend>
 

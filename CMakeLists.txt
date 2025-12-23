@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(TODO_PACKAGE_NAME)
+project(yet_another_gps_publisher)
 include(FetchContent)
 
 if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -18,11 +18,11 @@ find_package(cv_bridge REQUIRED)
 find_package(OpenCV 4.2.0 REQUIRED)
 
 # Add source for node executable (link non-ros dependencies here)
-add_executable(TODO_PACKAGE_NAME src/TODO_NODE_NAME.cpp src/TODO_NODE_NAME_node.cpp)
-target_include_directories(TODO_PACKAGE_NAME PUBLIC
+add_executable(yet_another_gps_publisher src/yet_another_gps_publisher.cpp src/yet_another_gps_publisher_node.cpp)
+target_include_directories(yet_another_gps_publisher PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>)
-target_compile_features(TODO_PACKAGE_NAME PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+target_compile_features(yet_another_gps_publisher PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
 
 # Make ros deps a variable so they get linked to tests as well
 set(dependencies
@@ -38,11 +38,11 @@ set(dependencies
 
 # Link ros dependencies
 ament_target_dependencies(
-        TODO_PACKAGE_NAME
+        yet_another_gps_publisher
         ${dependencies}
 )
 
-install(TARGETS TODO_PACKAGE_NAME
+install(TARGETS yet_another_gps_publisher
         DESTINATION lib/${PROJECT_NAME})
 
 # Uncomment below to make launch files available if created
@@ -62,7 +62,7 @@ if (BUILD_TESTING)
     ament_add_gtest(${PROJECT_NAME}-test
             tests/unit.cpp
             # Remember to add node source files
-            src/TODO_NODE_NAME_node.cpp
+            src/yet_another_gps_publisher_node.cpp
             )
     ament_target_dependencies(${PROJECT_NAME}-test ${dependencies})
     target_include_directories(${PROJECT_NAME}-test PUBLIC
