@@ -13,9 +13,8 @@ find_package(rclcpp REQUIRED)
 find_package(ackermann_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
-# OpenCV TODO_EXTRA
-find_package(cv_bridge REQUIRED)
-find_package(OpenCV 4.2.0 REQUIRED)
+# GPS packages
+find_package(geodesy REQUIRED)
 
 # Add source for node executable (link non-ros dependencies here)
 add_executable(yet_another_gps_publisher src/yet_another_gps_publisher.cpp src/yet_another_gps_publisher_node.cpp)
@@ -31,9 +30,8 @@ set(dependencies
         ackermann_msgs
         sensor_msgs
         std_msgs
-        # OpenCv TODO_EXTRA
-        cv_bridge
-        OpenCV
+        # GPS Packages
+        geodesy
         )
 
 # Link ros dependencies

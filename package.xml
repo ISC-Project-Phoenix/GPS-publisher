@@ -16,9 +16,8 @@
     <depend>sensor_msgs</depend>
     <depend>std_msgs</depend>
 
-    <!--OpenCv Things yet_another_gps_publisher-->
-    <depend>cv_bridge</depend>
-    <depend>libopencv-dev</depend>
+    <!--GPS packages-->
+    <depend>geodesy</depend>
 
     <test_depend>ament_lint_auto</test_depend>
     <test_depend>ament_cmake_flake8</test_depend>
