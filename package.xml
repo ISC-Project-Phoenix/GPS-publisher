@@ -11,13 +11,22 @@
 
     <depend>rclcpp</depend>
 
-    <!--Messages yet_another_gps_publisher-->
+    <!--Messages-->
     <depend>ackermann_msgs</depend>
     <depend>sensor_msgs</depend>
     <depend>std_msgs</depend>
 
     <!--GPS packages-->
     <depend>geodesy</depend>
+
+    <!-- Additional dependencies for spline generation and TF -->
+    <depend>geographic_msgs</depend>         <!-- for GeoPoint -->
+    <depend>geometry_msgs</depend>           <!-- for Pose, PoseStamped -->
+    <depend>nav_msgs</depend>                 <!-- for Path, Odometry -->
+    <depend>tf2</depend>
+    <depend>tf2_ros</depend>
+    <depend>tf2_geometry_msgs</depend>
+    <depend>rclcpp_components</depend>       <!-- for component registration -->
 
     <test_depend>ament_lint_auto</test_depend>
     <test_depend>ament_cmake_flake8</test_depend>
