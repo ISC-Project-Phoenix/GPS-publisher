@@ -8,8 +8,6 @@
 
 #include "yet_another_gps_publisher/spline_factory.hpp"
 
-using namespace std::placeholders;
-
 // Constructor
 yet_another_gps_publisher::yet_another_gps_publisher(const rclcpp::NodeOptions& options)
     : Node("yet_another_gps_publisher", options), tf_buffer_(this->get_clock()), tf_listener_(tf_buffer_) {
@@ -23,19 +21,20 @@ yet_another_gps_publisher::yet_another_gps_publisher(const rclcpp::NodeOptions& 
 
     // Subscribers
     odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
-        odom_topic_, 10, std::bind(&yet_another_gps_publisher::odom_callback, this, _1));
+        odom_topic_, 10, std::bind(&yet_another_gps_publisher::odom_callback, this, std::placeholders::_1));
 
     // Publisher
-    path_pub_ = this->create_publisher<nav_msgs::msg::Path>("spline_path", 10);
+    path_pub_ = this->create_publisher<nav_msgs::msg::Path>("/path", 5);
 
     // Timer (1 Hz)
-    // TODO remove this the call back will be the navsat transform from the gps lol. 
+    // TODO remove this the call back will be the navsat transform from the gps lol.
     timer_ =
         this->create_wall_timer(std::chrono::seconds(1), std::bind(&yet_another_gps_publisher::timer_callback, this));
 
     RCLCPP_INFO(this->get_logger(), "yet_another_gps_publisher started");
 
     // Load waypoints directly on startup!
+    // TODO catch failure and maybe retry later if file not found, instead of just crashing or doing nothing.
     load_waypoints(waypoint_file_path);
 }
 
@@ -44,7 +43,7 @@ void yet_another_gps_publisher::odom_callback(const nav_msgs::msg::Odometry::Sha
     current_pose_ = msg->pose.pose;
 }
 
-// Normal function to load waypoints from file on startup
+// standard function to load waypoints from file on startup
 bool yet_another_gps_publisher::load_waypoints(const std::string& file_path) {
     std::ifstream file(file_path);
     if (!file.is_open()) {
@@ -94,7 +93,8 @@ bool yet_another_gps_publisher::transformWaypoint(gps_waypoint& wp) {
     geographic_msgs::msg::GeoPoint geo;
     geo.latitude = wp.latitude();
     geo.longitude = wp.longitude();
-    geo.altitude = 0.0;  // assume ground level; could be extended
+    geo.altitude = 0.0;  // assume ground level. Will not support altiude, ever.
+                         // this is a GROUND nav robot lmao -redtoo
 
     // Convert to UTM using geodesy
     geodesy::UTMPoint utm;
@@ -196,6 +196,6 @@ gps_waypoint::gps_waypoint(double lon, double lat, const std::string& method, do
     : longitude_(lon), latitude_(lat), method_(method), radius_(radius), enabled_(true) {}
 
 // Register node as a component
-// todo chat why are we evening using this 
+// todo chat why are we evening using this
 #include "rclcpp_components/register_node_macro.hpp"
 RCLCPP_COMPONENTS_REGISTER_NODE(yet_another_gps_publisher)
