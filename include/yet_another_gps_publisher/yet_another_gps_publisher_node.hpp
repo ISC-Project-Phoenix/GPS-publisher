@@ -48,8 +48,10 @@ private:
 
     // Callbacks
     void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg);
-    void waypoint_file_callback(const std_msgs::msg::String::SharedPtr msg);
     void timer_callback();
+
+    // helper to load waypoints from file
+    bool load_waypoints(const std::string& file_path);
 
     // Helper: transform a waypoint from lat/lon to odom frame using TF
     bool transformWaypoint(gps_waypoint& wp);
