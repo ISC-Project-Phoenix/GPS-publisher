@@ -29,6 +29,7 @@ yet_another_gps_publisher::yet_another_gps_publisher(const rclcpp::NodeOptions& 
     path_pub_ = this->create_publisher<nav_msgs::msg::Path>("spline_path", 10);
 
     // Timer (1 Hz)
+    // TODO remove this the call back will be the navsat transform from the gps lol. 
     timer_ =
         this->create_wall_timer(std::chrono::seconds(1), std::bind(&yet_another_gps_publisher::timer_callback, this));
 
@@ -182,6 +183,7 @@ void yet_another_gps_publisher::timer_callback() {
         RCLCPP_INFO(this->get_logger(), "Published spline path, length = %.2f m using %zu waypoints", cumulative_length,
                     used_count);
         // Optionally remove used waypoints:
+        // DO NOT REMOVE WATPOINTS CHAT
         // waypoints_.erase(waypoints_.begin(), waypoints_.begin() + used_count);
     } else {
         RCLCPP_DEBUG(this->get_logger(), "Path too short (%.2f < %.2f), not publishing", cumulative_length,
@@ -194,5 +196,6 @@ gps_waypoint::gps_waypoint(double lon, double lat, const std::string& method, do
     : longitude_(lon), latitude_(lat), method_(method), radius_(radius), enabled_(true) {}
 
 // Register node as a component
+// todo chat why are we evening using this 
 #include "rclcpp_components/register_node_macro.hpp"
 RCLCPP_COMPONENTS_REGISTER_NODE(yet_another_gps_publisher)
