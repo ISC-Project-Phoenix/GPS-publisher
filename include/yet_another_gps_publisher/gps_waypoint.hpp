@@ -1,10 +1,9 @@
 #pragma once
 
-#include <string>
 #include <geometry_msgs/msg/pose.hpp>
+#include <string>
 
-class gps_waypoint
-{
+class gps_waypoint {
 public:
     gps_waypoint() = default;
     gps_waypoint(double lon, double lat, const std::string& method, double radius = 0.0);

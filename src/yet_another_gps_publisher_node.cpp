@@ -1,56 +1,54 @@
 #include "yet_another_gps_publisher/yet_another_gps_publisher_node.hpp"
-#include "yet_another_gps_publisher/spline_factory.hpp"
-#include <fstream>
-#include <sstream>
-#include <memory>
+
 #include <cmath>
+#include <fstream>
 #include <geographic_msgs/msg/geo_point.hpp>
+#include <memory>
+#include <sstream>
+
+#include "yet_another_gps_publisher/spline_factory.hpp"
 
 using namespace std::placeholders;
 
 // Constructor
 yet_another_gps_publisher::yet_another_gps_publisher(const rclcpp::NodeOptions& options)
-    : Node("yet_another_gps_publisher", options),
-      tf_buffer_(this->get_clock()),
-      tf_listener_(tf_buffer_)
-{
+    : Node("yet_another_gps_publisher", options), tf_buffer_(this->get_clock()), tf_listener_(tf_buffer_) {
     // Declare parameters
     min_spline_length_ = this->declare_parameter<double>("min_spline_length", 10.0);
     odom_topic_ = this->declare_parameter<std::string>("odom_topic", "/odometry/filtered");
-    waypoint_file_topic_ = this->declare_parameter<std::string>("waypoint_file_topic", "/waypoint_file");
     utm_frame_id_ = this->declare_parameter<std::string>("utm_frame_id", "utm");
     odom_frame_id_ = this->declare_parameter<std::string>("odom_frame_id", "odom");
+    // TODO actually set this parameter from launch file or command line, not hardcoded.
+    waypoint_file_path = this->declare_parameter<std::string>("waypoint_file", "waypoints.txt");
 
     // Subscribers
     odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
         odom_topic_, 10, std::bind(&yet_another_gps_publisher::odom_callback, this, _1));
-    waypoint_file_sub_ = this->create_subscription<std_msgs::msg::String>(
-        waypoint_file_topic_, 1, std::bind(&yet_another_gps_publisher::waypoint_file_callback, this, _1));
 
     // Publisher
     path_pub_ = this->create_publisher<nav_msgs::msg::Path>("spline_path", 10);
 
     // Timer (1 Hz)
-    timer_ = this->create_wall_timer(
-        std::chrono::seconds(1), std::bind(&yet_another_gps_publisher::timer_callback, this));
+    timer_ =
+        this->create_wall_timer(std::chrono::seconds(1), std::bind(&yet_another_gps_publisher::timer_callback, this));
 
     RCLCPP_INFO(this->get_logger(), "yet_another_gps_publisher started");
+
+    // Load waypoints directly on startup!
+    load_waypoints(waypoint_file_path);
 }
 
 // Odom callback
-void yet_another_gps_publisher::odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg)
-{
+void yet_another_gps_publisher::odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
     current_pose_ = msg->pose.pose;
 }
 
-// Waypoint file callback
-void yet_another_gps_publisher::waypoint_file_callback(const std_msgs::msg::String::SharedPtr msg)
-{
-    std::string file_path = msg->data;
+// Normal function to load waypoints from file on startup
+bool yet_another_gps_publisher::load_waypoints(const std::string& file_path) {
     std::ifstream file(file_path);
     if (!file.is_open()) {
         RCLCPP_ERROR(this->get_logger(), "Could not open file: %s", file_path.c_str());
-        return;
+        return false;
     }
 
     std::string line;
@@ -61,18 +59,19 @@ void yet_another_gps_publisher::waypoint_file_callback(const std_msgs::msg::Stri
 
         std::istringstream iss(line);
         double lon, lat, radius = 0.0;
-        std::string method;
-        if (!(iss >> lon >> lat >> method)) {
+        std::string spline_type;
+
+        if (!(iss >> lon >> lat >> spline_type)) {
             RCLCPP_WARN(this->get_logger(), "Skipping malformed line %d", line_num);
             continue;
         }
-        if (method == "circle") {
+        if (spline_type == "circle") {
             if (!(iss >> radius)) {
                 RCLCPP_WARN(this->get_logger(), "Circle method on line %d missing radius, using default 0", line_num);
             }
         }
 
-        gps_waypoint wp(lon, lat, method, radius);
+        gps_waypoint wp(lon, lat, spline_type, radius);
 
         // Transform waypoint to odom frame
         if (!transformWaypoint(wp)) {
@@ -81,24 +80,24 @@ void yet_another_gps_publisher::waypoint_file_callback(const std_msgs::msg::Stri
         }
 
         waypoints_.push_back(wp);
-        RCLCPP_INFO(this->get_logger(), "Loaded waypoint %zu: method=%s at (%.6f, %.6f)",
-                    waypoints_.size(), method.c_str(), lon, lat);
+        RCLCPP_INFO(this->get_logger(), "Loaded waypoint %zu: spline_type=%s at (%.6f, %.6f)", waypoints_.size(),
+                    spline_type.c_str(), lon, lat);
     }
     file.close();
+    return true;
 }
 
 // Transform waypoint from lat/lon to odom
-bool yet_another_gps_publisher::transformWaypoint(gps_waypoint& wp)
-{
+bool yet_another_gps_publisher::transformWaypoint(gps_waypoint& wp) {
     // Create a GeoPoint from lat/lon
     geographic_msgs::msg::GeoPoint geo;
     geo.latitude = wp.latitude();
     geo.longitude = wp.longitude();
-    geo.altitude = 0.0;   // assume ground level; could be extended
+    geo.altitude = 0.0;  // assume ground level; could be extended
 
     // Convert to UTM using geodesy
     geodesy::UTMPoint utm;
-    geodesy::fromMsg(geo, utm);   // This populates easting, northing, zone, etc.
+    geodesy::fromMsg(geo, utm);  // This populates easting, northing, zone, etc.
 
     geometry_msgs::msg::PoseStamped utm_pose;
     utm_pose.header.frame_id = utm_frame_id_;
@@ -119,8 +118,7 @@ bool yet_another_gps_publisher::transformWaypoint(gps_waypoint& wp)
 }
 
 // Timer callback: generate and publish spline
-void yet_another_gps_publisher::timer_callback()
-{
+void yet_another_gps_publisher::timer_callback() {
     if (waypoints_.empty()) {
         return;
     }
@@ -146,14 +144,14 @@ void yet_another_gps_publisher::timer_callback()
         const auto& wp = waypoints_[i];
         if (!wp.enabled()) continue;
 
-        const gps_waypoint& start_ref = (i == 0) ? current_wp : waypoints_[i-1];
+        const gps_waypoint& start_ref = (i == 0) ? current_wp : waypoints_[i - 1];
 
         std::vector<geometry_msgs::msg::Pose> segment;
         try {
             segment = gps_waypoint_spline::SplineFactory::generate(wp.method(), start_ref, wp);
         } catch (const std::exception& e) {
-            RCLCPP_ERROR(this->get_logger(), "Spline generation failed for method %s: %s",
-                         wp.method().c_str(), e.what());
+            RCLCPP_ERROR(this->get_logger(), "Spline generation failed for method %s: %s", wp.method().c_str(),
+                         e.what());
             break;
         }
 
@@ -167,7 +165,7 @@ void yet_another_gps_publisher::timer_callback()
 
         // Update cumulative length
         for (size_t j = 1; j < segment.size(); ++j) {
-            const auto& a = segment[j-1].position;
+            const auto& a = segment[j - 1].position;
             const auto& b = segment[j].position;
             cumulative_length += std::hypot(b.x - a.x, b.y - a.y);
         }
@@ -181,20 +179,19 @@ void yet_another_gps_publisher::timer_callback()
 
     if (cumulative_length >= min_spline_length_) {
         path_pub_->publish(path);
-        RCLCPP_INFO(this->get_logger(), "Published spline path, length = %.2f m using %zu waypoints",
-                    cumulative_length, used_count);
+        RCLCPP_INFO(this->get_logger(), "Published spline path, length = %.2f m using %zu waypoints", cumulative_length,
+                    used_count);
         // Optionally remove used waypoints:
         // waypoints_.erase(waypoints_.begin(), waypoints_.begin() + used_count);
     } else {
-        RCLCPP_DEBUG(this->get_logger(), "Path too short (%.2f < %.2f), not publishing",
-                     cumulative_length, min_spline_length_);
+        RCLCPP_DEBUG(this->get_logger(), "Path too short (%.2f < %.2f), not publishing", cumulative_length,
+                     min_spline_length_);
     }
 }
 
 // gps_waypoint constructor implementation
 gps_waypoint::gps_waypoint(double lon, double lat, const std::string& method, double radius)
-    : longitude_(lon), latitude_(lat), method_(method), radius_(radius), enabled_(true)
-{}
+    : longitude_(lon), latitude_(lat), method_(method), radius_(radius), enabled_(true) {}
 
 // Register node as a component
 #include "rclcpp_components/register_node_macro.hpp"

@@ -1,18 +1,19 @@
 #pragma once
 
+#include <deque>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+
+#include "geodesy/utm.h"
+#include "geometry_msgs/msg/pose_stamped.hpp"
+#include "gps_waypoint.hpp"
+#include "nav_msgs/msg/odometry.hpp"
+#include "nav_msgs/msg/path.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
-#include "nav_msgs/msg/path.hpp"
-#include "nav_msgs/msg/odometry.hpp"
-#include "geometry_msgs/msg/pose_stamped.hpp"
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_listener.h"
-#include "geodesy/utm.h"
-#include "gps_waypoint.hpp"
-#include <deque>
 
-class yet_another_gps_publisher : public rclcpp::Node
-{
+class yet_another_gps_publisher : public rclcpp::Node {
 public:
     explicit yet_another_gps_publisher(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
@@ -23,6 +24,7 @@ private:
     std::string waypoint_file_topic_;
     std::string utm_frame_id_;
     std::string odom_frame_id_;
+    std::string waypoint_file_path;
 
     // Subscribers
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;

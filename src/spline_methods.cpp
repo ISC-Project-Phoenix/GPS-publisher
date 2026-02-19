@@ -1,23 +1,19 @@
-#include "yet_another_gps_publisher/spline_factory.hpp"
 #include <cmath>
 #include <stdexcept>
+
+#include "yet_another_gps_publisher/spline_factory.hpp"
 
 namespace gps_waypoint_spline {
 
 // Factory registry
-std::map<std::string, SplineGenerator>& SplineFactory::registry()
-{
+std::map<std::string, SplineGenerator>& SplineFactory::registry() {
     static std::map<std::string, SplineGenerator> reg;
     return reg;
 }
 
-void SplineFactory::registerGenerator(const std::string& name, SplineGenerator gen)
-{
-    registry()[name] = gen;
-}
+void SplineFactory::registerGenerator(const std::string& name, SplineGenerator gen) { registry()[name] = gen; }
 
-SplineGenerator SplineFactory::getGenerator(const std::string& name)
-{
+SplineGenerator SplineFactory::getGenerator(const std::string& name) {
     auto it = registry().find(name);
     if (it == registry().end()) {
         throw std::runtime_error("Unknown spline method: " + name);
@@ -25,11 +21,8 @@ SplineGenerator SplineFactory::getGenerator(const std::string& name)
     return it->second;
 }
 
-std::vector<geometry_msgs::msg::Pose> SplineFactory::generate(
-    const std::string& name,
-    const gps_waypoint& start,
-    const gps_waypoint& end)
-{
+std::vector<geometry_msgs::msg::Pose> SplineFactory::generate(const std::string& name, const gps_waypoint& start,
+                                                              const gps_waypoint& end) {
     return getGenerator(name)(start, end);
 }
 
@@ -37,10 +30,7 @@ std::vector<geometry_msgs::msg::Pose> SplineFactory::generate(
 // Concrete generators
 // ------------------------------------------------------------------
 
-static std::vector<geometry_msgs::msg::Pose> linearGenerator(
-    const gps_waypoint& start,
-    const gps_waypoint& end)
-{
+static std::vector<geometry_msgs::msg::Pose> linearGenerator(const gps_waypoint& start, const gps_waypoint& end) {
     const auto& a = start.odomPose().position;
     const auto& b = end.odomPose().position;
 
@@ -60,10 +50,7 @@ static std::vector<geometry_msgs::msg::Pose> linearGenerator(
     return points;
 }
 
-static std::vector<geometry_msgs::msg::Pose> circleGenerator(
-    const gps_waypoint& start,
-    const gps_waypoint& end)
-{
+static std::vector<geometry_msgs::msg::Pose> circleGenerator(const gps_waypoint& start, const gps_waypoint& end) {
     double R = end.radius();
     if (R <= 0.0) {
         return linearGenerator(start, end);
