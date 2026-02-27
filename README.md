@@ -1,17 +1,5 @@
 An opinionated ROS2 C++ node template, optimised for ISC.
 
-# Instructions
-
-1. Clone repo inside your workspaces src directory (Ex. phnx_ws/src)
-2. `rosdep install --from-paths . --ignore-src -r -y` to install deps
-3. `colcon build` to make sure the repo builds before you mess with it
-4. Replace the following in both file names and code exactly and consistently. 
-   1. yet_another_gps_publisher: Replace with the package name. Use snake case. Ex. `data_logger`
-   2. yet_another_gps_publisher: Replace with the node name. Use Pascal case. Ex. `DataLogger`
-5. `colcon build` again. If it builds, you are done
-6. Rename outer folder
-7. Review the optional dependencies, and remove what you do not need
-
 # Dependencies
 Some common extra dependencies are included. Review them and remove what you don't need.
 These are marked with yet_another_gps_publisher.
@@ -29,15 +17,18 @@ These are marked with yet_another_gps_publisher.
 ```
 .
 ├── include
-│   └── yet_another_gps_publisher
-│       └── yet_another_gps_publisher_node.hpp
-├── package.xml
-├── README.md
-├── src
-│   ├── yet_another_gps_publisher.cpp
-│   └── yet_another_gps_publisher.cpp
-└── tests
-    └── unit.cpp
+│   └── yet_another_gps_publisher
+│       ├── gps_waypoint.hpp        // this is the header for the GPS CLASSES
+│       ├── spline_factory.hpp      // this holds the spline generation methonds
+│       └── yet_another_gps_publisher_node.hpp  // this is the header for teh node specficlly. 
+├── package.xml // ros building files
+├── README.md   // this file 😆 
+├── src         // the main file for logicing codes
+│   ├── spline_methods.cpp                  // this holds the spline generation methonds
+│   ├── yet_another_gps_publisher.cpp       // this holds the main logic for the node. THis is where the callbacks are
+│   └── yet_another_gps_publisher_node.cpp  // this is file that ROS launches. 
+└── tests   // we donts use these tbh
+    └── unit.cpp  
 ```
 
 yet_another_gps_publisher_NODE_NAME_node: Source files for the ROS2 node object itself, and only itself
