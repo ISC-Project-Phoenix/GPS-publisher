@@ -12,8 +12,6 @@ public:
     double latitude() const { return latitude; }
     const std::string& method() const { return method; }
     double radius() const { return radius; }
-    bool enabled() const { return enabled; }
-    void setEnabled(bool e) { enabled_ = e; }
 
     // Odom pose after transformation (set when waypoint is loaded)
     void setOdomPose(const geometry_msgs::msg::Pose& pose) { odom_pose_ = pose; }
