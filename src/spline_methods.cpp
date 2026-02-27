@@ -3,6 +3,15 @@
 
 #include "yet_another_gps_publisher/spline_factory.hpp"
 
+
+// ------------------------------------------------------------------------------------------
+//
+//  todo this file is for storing the splines functions we want to generate with
+//  we need to store the functions either here or in the GPS classes. 
+//  up too ya'll
+//
+// ------------------------------------------------------------------------------------------
+
 namespace gps_waypoint_spline {
 
 // Factory registry
@@ -34,7 +43,7 @@ static std::vector<geometry_msgs::msg::Pose> linearGenerator(const gps_waypoint&
     const auto& a = start.odomPose().position;
     const auto& b = end.odomPose().position;
 
-    const int num_points = 10;
+    const int num_points = 10; // TODO this shouldnt be hardcoded like EVER
     std::vector<geometry_msgs::msg::Pose> points;
     points.reserve(num_points + 1);
 
