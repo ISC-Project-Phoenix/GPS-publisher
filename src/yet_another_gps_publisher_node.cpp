@@ -101,7 +101,7 @@ bool yet_another_gps_publisher::transformWaypoint(gps_waypoint& wp) {
     geodesy::fromMsg(geo, utm);  // This populates easting, northing, zone, etc.
 
     geometry_msgs::msg::PoseStamped utm_pose;
-    utm_pose.header.frame_id = utm_frame_id_;
+    utm_pose.header.frame_id = utm_frame_id;
     utm_pose.header.stamp = this->now();
     utm_pose.pose.position.x = utm.easting;
     utm_pose.pose.position.y = utm.northing;
@@ -125,13 +125,13 @@ void yet_another_gps_publisher::timer_callback() {
     }
 
     nav_msgs::msg::Path path;
-    path.header.frame_id = odom_frame_id_;
+    path.header.frame_id = odom_frame_id;
     path.header.stamp = this->now();
 
     // Start with current pose
     geometry_msgs::msg::PoseStamped start_pose;
     start_pose.header = path.header;
-    start_pose.pose = current_pose_;
+    start_pose.pose = current_pose;
     path.poses.push_back(start_pose);
 
     double cumulative_length = 0.0;

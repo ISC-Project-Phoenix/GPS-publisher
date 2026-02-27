@@ -19,32 +19,32 @@ public:
 
 private:
     // Parameters
-    double min_spline_length_;
-    std::string odom_topic_;
-    std::string waypoint_file_topic_;
-    std::string utm_frame_id_;
-    std::string odom_frame_id_;
+    double min_spline_length;
+    std::string odom_topic;
+    std::string waypoint_file_topic;
+    std::string utm_frame_id;
+    std::string odom_frame_id;
     std::string waypoint_file_path;
 
     // Subscribers
-    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
-    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr waypoint_file_sub_;
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub;
+    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr waypoint_file_sub;
 
     // Publisher
-    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
+    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub;
 
     // Timer for periodic spline generation
-    rclcpp::TimerBase::SharedPtr timer_;
+    rclcpp::TimerBase::SharedPtr timer;
 
     // TF
-    tf2_ros::Buffer tf_buffer_;
-    tf2_ros::TransformListener tf_listener_;
+    tf2_ros::Buffer tf_buffer;
+    tf2_ros::TransformListener tf_listener;
 
     // Current robot pose in odom frame (from odometry)
-    geometry_msgs::msg::Pose current_pose_;
+    geometry_msgs::msg::Pose current_pose;
 
     // List of pending waypoints (already transformed to odom)
-    std::deque<gps_waypoint> waypoints_;
+    std::deque<gps_waypoint> waypoints;
 
     // Callbacks
     void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg);
