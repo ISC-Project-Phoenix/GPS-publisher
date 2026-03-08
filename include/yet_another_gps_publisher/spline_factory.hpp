@@ -10,7 +10,10 @@
 
 namespace gps_waypoint_spline {
 
-    // what does using mean compared to normal spline generator. 
+// 'using' just creates a shorthand nickname. Instead of typing out 
+// this massive 'std::function<...>' every time, we can just type 'SplineGenerator'.
+// when called write this!  
+// void registerGenerator(std::string name, SplineGenerator gen);
 using SplineGenerator =
     std::function<std::vector<geometry_msgs::msg::Pose>(const gps_waypoint& start, const gps_waypoint& end)>;
 
