@@ -12,6 +12,14 @@ These are marked with yet_another_gps_publisher.
 - A selection of sane lints
 - A single node setup in a multithreaded executor
 
+# Parameters
+
+- min_spline_length <double> This is just the minium length the spline needs to be. This is Determened by what the Controls team needs. this is a hard coding trick for now but ideally this a topic from Hybird Pure Pursuit so it can be dymatic. 
+- odom_topic <std::string> "odom_topic" 
+- utm_frame_id <std::string>"utm_frame_id". Keep in might this changes between Dearborn and Indina
+- odom_frame_id <std::string> "odom_frame_id"
+- waypoint_file_path <std::string> "waypoint_file" path
+
 # File structure
 
 ```
