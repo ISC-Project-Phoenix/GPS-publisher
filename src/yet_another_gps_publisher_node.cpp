@@ -138,12 +138,10 @@ void yet_another_gps_publisher::timer_callback() {
     // Temporary waypoint for current pose (method irrelevant)
     gps_waypoint current_wp;
     current_wp.setOdomPose(current_pose);
-    current_wp.setEnabled(true);
 
     size_t used_count = 0;
     for (size_t i = 0; i < waypoints.size(); ++i) {
         const auto& wp = waypoints[i];
-        if (!wp.enabled()) continue;
 
         const gps_waypoint& start_ref = (i == 0) ? current_wp : waypoints[i - 1];
 
@@ -193,7 +191,7 @@ void yet_another_gps_publisher::timer_callback() {
 
 // gps_waypoint constructor implementation
 gps_waypoint::gps_waypoint(double lon, double lat, const std::string& method, double radius)
-    : longitude_(lon), latitude_(lat), method_(method), radius_(radius), enabled_(true) {}
+    : longitude_(lon), latitude_(lat), method_(method), radius_(radius) {}
 
 // Register node as a component
 // todo chat why are we evening using this

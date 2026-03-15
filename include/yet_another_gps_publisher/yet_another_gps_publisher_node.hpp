@@ -37,11 +37,12 @@ private:
     rclcpp::TimerBase::SharedPtr timer;
 
     // TF
-    tf2_ros::Buffer tf_buffer;
-    tf2_ros::TransformListener tf_listener;
+    tf2_ros::Buffer tf_buffer_;
+    tf2_ros::TransformListener tf_listener_;
 
     // Current robot pose in odom frame (from odometry)
-    geometry_msgs::msg::Pose current_pose;
+    // Brace initialization zeros it out
+    geometry_msgs::msg::Pose current_pose{};
 
     // List of pending waypoints (already transformed to odom)
     std::deque<gps_waypoint> waypoints;
