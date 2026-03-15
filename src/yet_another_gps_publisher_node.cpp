@@ -12,11 +12,17 @@
 yet_another_gps_publisher::yet_another_gps_publisher(const rclcpp::NodeOptions& options)
     : Node("yet_another_gps_publisher", options), tf_buffer_(this->get_clock()), tf_listener_(tf_buffer_) {
     // Declare parameters
+
+    // This is the mimium size of the spline as required by the controls team. If its too short they cannot plan ahead of corners enough.
     min_spline_length = this->declare_parameter<double>("min_spline_length", 10.0);
+    // why the odom topic is a parameter: in sim we use the filtered odometry from the sim, but on the real robot we might want to use a different topic or maybe even have it remapped from the sim topic to the real topic.
     odom_topic = this->declare_parameter<std::string>("odom_topic", "/odometry/filtered");
+    // This is the utm Frame. Keep in might dearborn and purdue have different utm zones, so this might be necessary to change when we switch between the two or where ever you are.
     utm_frame_id = this->declare_parameter<std::string>("utm_frame_id", "utm");
+    // This is the odom frame we will translate the waypoints to.
     odom_frame_id = this->declare_parameter<std::string>("odom_frame_id", "odom");
     // TODO actually set this parameter from launch file or command line, not hardcoded.
+    // TODO indentify where this file should be stored?
     waypoint_file_path = this->declare_parameter<std::string>("waypoint_file", "waypoints.txt");
 
     // Subscribers

@@ -1,0 +1,15 @@
+# GPS Waypoints Configuration
+# Format: longitude latitude spline_type [radius]
+
+# 1. Standard linear waypoints
+-83.109121 42.486211 linear
+-83.110452 42.487122 cubic
+
+# 2. Circle waypoint with a defined radius of 15.5
+-83.111883 42.488001 circle 15.5
+
+# 3. Circle waypoint missing a radius (will trigger the line 26 warning and default to 0)
+-83.112994 42.489332 circle
+
+# 4. Another standard waypoint
+-83.114105 42.490111 spline
