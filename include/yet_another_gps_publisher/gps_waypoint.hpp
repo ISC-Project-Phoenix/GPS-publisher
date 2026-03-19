@@ -18,10 +18,19 @@ public:
     void setOdomPose(const geometry_msgs::msg::Pose& pose) { odom_pose = pose; }
     const geometry_msgs::msg::Pose& odomPose() const { return odom_pose; }
 
+    // Store the absolute UTM pose
+    void setUtmPose(const geometry_msgs::msg::PoseStamped& pose) { utm_pose_ = pose; }
+    geometry_msgs::msg::PoseStamped& utmPose() { return utm_pose_; }
+
+    // Odom pose after transformation (set when waypoint is loaded)
+    void setOdomPose(const geometry_msgs::msg::Pose& pose) { odom_pose = pose; }
+    const geometry_msgs::msg::Pose& odomPose() const { return odom_pose; }
+
 private:
     double longitude_ = 0.0;
     double latitude_ = 0.0;
     std::string method_ = "linear";
     double radius_ = 0.0;
+    geometry_msgs::msg::PoseStamped utm_pose_;
     geometry_msgs::msg::Pose odom_pose;
 };

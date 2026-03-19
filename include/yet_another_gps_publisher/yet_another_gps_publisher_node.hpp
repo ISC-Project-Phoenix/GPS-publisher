@@ -18,17 +18,26 @@ public:
     explicit yet_another_gps_publisher(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
 private:
-    // Parameters
-    double min_spline_length;
+    // Parameters for locatization and topics. 
     std::string odom_topic;
-    std::string waypoint_file_topic;
     std::string utm_frame_id;
     std::string odom_frame_id;
+    // paramters for waypoint file loading
     std::string waypoint_file_path;
+    std::string waypoint_file_topic;
+    // parameters for spline configs
+    double min_spline_length;
+    /// Parameters for confidence
+    double max_gps_variance; // Threshold in meters squared
+    bool is_gps_valid = false;
 
     // Subscribers
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub;
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr waypoint_file_sub;
+
+    // New GPS subscribers
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr gps_odom_sub;
+    rclcpp::Subscription<sensor_msgs::msg::NavSatFix>::SharedPtr raw_gps_sub;
 
     // Publisher
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub;
@@ -50,6 +59,10 @@ private:
     // Callbacks
     void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg);
     void timer_callback();
+
+    // GPS specific Callbacks
+    void gps_odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg);
+    void raw_gps_callback(const sensor_msgs::msg::NavSatFix::SharedPtr msg);
 
     // helper to load waypoints from file
     bool load_waypoints(const std::string& file_path);
