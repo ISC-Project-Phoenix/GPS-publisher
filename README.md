@@ -1,6 +1,6 @@
 # Functionality
 
-This node is designed to broadcast a spline between your Eagle and a waypoint(s). This is a ground truth full stack planning and navigation Node, desigened to be used with an ackerman control setup downstream. This requires a MAP and ODOM frame and NavSat for transforms with a GNSS to robotspace. The algorythm takes in defined GPS waypoints and uses a spline generating function, which are created in a abract factory spline_methods. This allows for different type of spline gen functions to be used with mininal downstream changes. Each point will spefic a function type.  
+This node is designed to broadcast a spline between your Eagle and a waypoint(s). This is a ground truth full stack planning and navigation Node, desigened to be used with an Ackermann control setup downstream. This requires a MAP and ODOM frame and NavSat for transforms with a GNSS to robotspace. The algorythm takes in defined GPS waypoints and uses a spline generating function, which are created in a abstract factory spline_methods. This allows for different type of spline gen functions to be used with mininal downstream changes. Each point will specify a function type.  
 
 # Parameters
 
