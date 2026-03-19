@@ -18,15 +18,15 @@ This node is designed to broadcast a spline between your Eagle and a waypoint(s)
 ├── include
 │   └── yet_another_gps_publisher
 │       ├── gps_waypoint.hpp        // this is the header for the GPS CLASSES
-│       ├── spline_factory.hpp      // this holds the spline generation methonds
-│       └── yet_another_gps_publisher_node.hpp  // this is the header for teh node specficlly. 
+│       ├── spline_factory.hpp      // this holds the spline generation methods
+│       └── yet_another_gps_publisher_node.hpp  // this is the header for the node specficlly. 
 ├── package.xml // ros building files
 ├── README.md   // this file 😆 
-├── src         // the main file for logicing codes
+├── src         // the main file for core logic
 │   ├── spline_methods.cpp                  // this holds the spline generation methonds
 │   ├── yet_another_gps_publisher.cpp       // this holds the main logic for the node. THis is where the callbacks are
 │   └── yet_another_gps_publisher_node.cpp  // this is file that ROS launches. 
-└── tests   // we donts use these tbh
+└── tests   // Placeholders for future unit testing 
     └── unit.cpp  
 ```
 
