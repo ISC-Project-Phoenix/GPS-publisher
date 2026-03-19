@@ -11,6 +11,10 @@ This node is designed to broadcast a spline between your Eagle and a waypoint(s)
 - waypoint_file_path <std::string> "waypoint_file" path
 - max_gps_variance <double> so basically this is the amount of variance allowed in gps readings between gnss readings. Ideally we dont want to be running if the GPS is jumping between METERS of points compared to odom. 
 
+# Subscribed Topics
+
+# Published Topics
+
 # File structure
 
 ```
