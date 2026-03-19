@@ -1,16 +1,3 @@
-An opinionated ROS2 C++ node template, optimised for ISC.
-
-# Dependencies
-Some common extra dependencies are included. Review them and remove what you don't need.
-These are marked with yet_another_gps_publisher.
-
-# Features
-
-- Unit tests
-- ROS-Industrial github CI (will test units and lints)
-- C++ formatting via clangformat
-- A selection of sane lints
-- A single node setup in a multithreaded executor
 
 # Parameters
 
