@@ -1,6 +1,7 @@
 #pragma once
 
 #include <geometry_msgs/msg/pose.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
 #include <string>
 
 class gps_waypoint {
@@ -21,10 +22,6 @@ public:
     // Store the absolute UTM pose
     void setUtmPose(const geometry_msgs::msg::PoseStamped& pose) { utm_pose_ = pose; }
     geometry_msgs::msg::PoseStamped& utmPose() { return utm_pose_; }
-
-    // Odom pose after transformation (set when waypoint is loaded)
-    void setOdomPose(const geometry_msgs::msg::Pose& pose) { odom_pose = pose; }
-    const geometry_msgs::msg::Pose& odomPose() const { return odom_pose; }
 
 private:
     double longitude_ = 0.0;

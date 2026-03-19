@@ -39,11 +39,11 @@ yet_another_gps_publisher::yet_another_gps_publisher(const rclcpp::NodeOptions& 
 
     // Subscribe to Raw GPS to check the fix status (VectorNav)
     raw_gps_sub = this->create_subscription<sensor_msgs::msg::NavSatFix>(
-        "/phoenix/navsat", 10, std::bind(&yet_another_gps_publisher::raw_gps_callback, this, _1));
+    "/phoenix/navsat", 10, std::bind(&yet_another_gps_publisher::raw_gps_callback, this, std::placeholders::_1));
 
     // Subscribe to NavSat Transform output to trigger spline generation
     gps_odom_sub = this->create_subscription<nav_msgs::msg::Odometry>(
-        "/odometry/gps", 10, std::bind(&yet_another_gps_publisher::gps_odom_callback, this, _1));
+    "/odometry/gps", 10, std::bind(&yet_another_gps_publisher::gps_odom_callback, this, std::placeholders::_1));
 
     // Load waypoints directly on startup!
     // TODO catch failure and maybe retry later if file not found, instead of just crashing or doing nothing.
