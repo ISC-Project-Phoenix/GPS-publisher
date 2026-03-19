@@ -1,3 +1,6 @@
+# Functionality
+
+This node is designed to broadcast a spline between your Eagle and a waypoint(s). This is a ground truth full stack planning and navigation Node, desigened to be used with an ackerman control setup downstream. This requires a MAP and ODOM frame and NavSat for transforms with a GNSS to robotspace. The algorythm takes in defined GPS waypoints and uses a spline generating function, which are created in a abract factory spline_methods. This allows for different type of spline gen functions to be used with mininal downstream changes. Each point will spefic a function type.  
 
 # Parameters
 
@@ -6,6 +9,7 @@
 - utm_frame_id <std::string>"utm_frame_id". Keep in might this changes between Dearborn and Indina
 - odom_frame_id <std::string> "odom_frame_id"
 - waypoint_file_path <std::string> "waypoint_file" path
+- max_gps_variance <double> so basically this is the amount of varanice allowed in gps readings between gnss readings. Ideally we dont want to be running if the GPS is jumping between METERS of points compared to odom. 
 
 # File structure
 
