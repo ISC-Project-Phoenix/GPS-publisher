@@ -18,7 +18,7 @@ public:
     explicit yet_another_gps_publisher(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
 private:
-    // Parameters for locatization and topics. 
+    // Parameters for locatization and topics.
     std::string odom_topic;
     std::string utm_frame_id;
     std::string odom_frame_id;
@@ -28,7 +28,7 @@ private:
     // parameters for spline configs
     double min_spline_length;
     /// Parameters for confidence
-    double max_gps_variance; // Threshold in meters squared
+    double max_gps_variance;  // Threshold in meters squared
     bool is_gps_valid = false;
 
     // Subscribers

@@ -29,7 +29,7 @@ yet_another_gps_publisher::yet_another_gps_publisher(const rclcpp::NodeOptions& 
     // TODO actually set this parameter from launch file or command line, not hardcoded.
     // TODO indentify where this file should be stored?
     waypoint_file_path = this->declare_parameter<std::string>("waypoint_file", "waypoints.txt");
-    
+
     // Publisher
     path_pub = this->create_publisher<nav_msgs::msg::Path>("/path", 5);
 
@@ -39,11 +39,11 @@ yet_another_gps_publisher::yet_another_gps_publisher(const rclcpp::NodeOptions& 
 
     // Subscribe to Raw GPS to check the fix status (VectorNav)
     raw_gps_sub = this->create_subscription<sensor_msgs::msg::NavSatFix>(
-    "/phoenix/navsat", 10, std::bind(&yet_another_gps_publisher::raw_gps_callback, this, std::placeholders::_1));
+        "/phoenix/navsat", 10, std::bind(&yet_another_gps_publisher::raw_gps_callback, this, std::placeholders::_1));
 
     // Subscribe to NavSat Transform output to trigger spline generation
     gps_odom_sub = this->create_subscription<nav_msgs::msg::Odometry>(
-    "/odometry/gps", 10, std::bind(&yet_another_gps_publisher::gps_odom_callback, this, std::placeholders::_1));
+        "/odometry/gps", 10, std::bind(&yet_another_gps_publisher::gps_odom_callback, this, std::placeholders::_1));
 
     // Load waypoints directly on startup!
     // TODO catch failure and maybe retry later if file not found, instead of just crashing or doing nothing.
@@ -57,7 +57,7 @@ void yet_another_gps_publisher::odom_callback(const nav_msgs::msg::Odometry::Sha
 
 // The Confidence Check + RAW GPS callback
 void yet_another_gps_publisher::raw_gps_callback(const sensor_msgs::msg::NavSatFix::SharedPtr msg) {
-    // Status < 0 means NO_FIX. 
+    // Status < 0 means NO_FIX.
     // We also check the covariance (diagonal [0] is Easting, [7] is Northing)
     if (msg->status.status < sensor_msgs::msg::NavSatStatus::STATUS_FIX) {
         RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000, "GPS Lost Fix!");
@@ -66,7 +66,8 @@ void yet_another_gps_publisher::raw_gps_callback(const sensor_msgs::msg::NavSatF
     }
 
     if (msg->position_covariance[0] > max_gps_variance) {
-        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000, "GPS Variance too high: %f", msg->position_covariance[0]);
+        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000, "GPS Variance too high: %f",
+                             msg->position_covariance[0]);
         is_gps_valid = false;
         return;
     }
@@ -156,11 +157,12 @@ void yet_another_gps_publisher::gps_odom_callback(const nav_msgs::msg::Odometry:
     for (auto& wp : waypoints) {
         try {
             // Use time 0 to get the latest available transform
-            wp.utmPose().header.stamp = rclcpp::Time(0); 
+            wp.utmPose().header.stamp = rclcpp::Time(0);
             geometry_msgs::msg::PoseStamped odom_wp = tf_buffer_.transform(wp.utmPose(), odom_frame_id);
             wp.setOdomPose(odom_wp.pose);
         } catch (tf2::TransformException& ex) {
-            RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), 2000, "TF Link UTM->ODOM failed: %s", ex.what());
+            RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), 2000, "TF Link UTM->ODOM failed: %s",
+                                  ex.what());
             return;
         }
     }
@@ -168,7 +170,7 @@ void yet_another_gps_publisher::gps_odom_callback(const nav_msgs::msg::Odometry:
     // --- STEP 2: PATH GENERATION ---
     nav_msgs::msg::Path path;
     path.header.frame_id = odom_frame_id;
-    path.header.stamp = msg->header.stamp; // Sync path time to the GPS update time
+    path.header.stamp = msg->header.stamp;  // Sync path time to the GPS update time
 
     double cumulative_length = 0.0;
     size_t used_count = 0;

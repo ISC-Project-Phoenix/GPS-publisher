@@ -12,4 +12,4 @@
 -83.112994 42.489332 circle
 
 # 4. Another standard waypoint
--83.114105 42.490111 spline
+-83.114105 42.490111 spline 
