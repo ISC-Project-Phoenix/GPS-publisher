@@ -28,7 +28,7 @@ yet_another_gps_publisher::yet_another_gps_publisher(const rclcpp::NodeOptions& 
     odom_frame_id = this->declare_parameter<std::string>("odom_frame_id", "odom");
     // TODO actually set this parameter from launch file or command line, not hardcoded.
     // TODO indentify where this file should be stored?
-    waypoint_file_path = this->declare_parameter<std::string>("gps_waypoints_parking_lot_mk1.txt");
+    waypoint_file_path = this->declare_parameter<std::string>("","gps_waypoints_parking_lot_mk1.txt");
 
     // Publisher
     path_pub = this->create_publisher<nav_msgs::msg::Path>("/path", 5);
