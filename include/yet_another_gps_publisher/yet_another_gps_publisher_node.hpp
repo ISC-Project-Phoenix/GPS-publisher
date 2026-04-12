@@ -31,6 +31,10 @@ private:
     double max_gps_variance;  // Threshold in meters squared
     bool is_gps_valid = false;
 
+
+    size_t current_waypoint_index_global = 0; 
+    double arrival_threshold = 2.0; // Meters; adjust based on robot size/speed
+
     // Subscribers
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub;
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr waypoint_file_sub;

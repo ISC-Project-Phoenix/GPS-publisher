@@ -20,6 +20,10 @@ yet_another_gps_publisher::yet_another_gps_publisher(const rclcpp::NodeOptions& 
     // This is the mimium size of the spline as required by the controls team. If its too short they cannot plan ahead of corners enough.
     min_spline_length = this->declare_parameter<double>("min_spline_length", 10.0);
 
+    // this is the mimium radus for the kart to have considered "arrived" at a particular waypoint.
+    // as is the norm for ROS2 this unit is in meters.  
+    arrival_threshold = this->declare_parameter<double>("arrival_threshold", 2.0);
+
     // why the odom topic is a parameter: in sim we use the filtered odometry from the sim, but on the real robot we might want to use a different topic or maybe even have it remapped from the sim topic to the real topic.
     odom_topic = this->declare_parameter<std::string>("odom_topic", "/odometry/filtered");
     // This is the utm Frame. Keep in might dearborn and purdue have different utm zones, so this might be necessary to change when we switch between the two or where ever you are.
@@ -145,46 +149,57 @@ bool yet_another_gps_publisher::transformWaypoint(gps_waypoint& wp) {
 // gps callback: generate and publish spline
 void yet_another_gps_publisher::gps_odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
     // Guard: Don't calculate paths if waypoints aren't loaded or GPS is unreliable
-    if (!is_gps_valid || waypoints.empty()) {
+    if (!is_gps_valid || waypoints.empty() || current_waypoint_index_global >= waypoints.size()) {
         return;
     }
 
     // Update current robot pose from the GPS-corrected odometry message
     current_pose = msg->pose.pose;
 
-    // --- STEP 1: DYNAMIC TRANSFORM ---
-    // We transform our static UTM waypoints into the current (drifting) ODOM frame
-    for (auto& wp : waypoints) {
+    // --- STEP 1: CHECK FOR ARRIVAL ---
+    // Get the current target waypoint's position in Odom frame
+    auto& target_wp = waypoints[current_waypoint_index_global];
+    double dist_to_target = std::hypot(
+        current_pose.position.x - target_wp.odomPose().position.x,
+        current_pose.position.y - target_wp.odomPose().position.y
+    );
+    // If we are close enough, "pass" it by moving the pointer forward
+    if (dist_to_target < arrival_threshold) {
+        RCLCPP_INFO(this->get_logger(), "Passed waypoint %zu!", current_waypoint_index_global);
+        current_waypoint_index_global++;
+        
+        // Guard against finishing the list
+        if (current_waypoint_index_global >= waypoints.size()) return;
+    }
+
+    // --- STEP 2: DYNAMIC TRANSFORM ---
+    // Note: You only really need to transform the waypoints from current_waypoint_index_global onwards
+    for (int i = current_waypoint_index_global; i < waypoints.size(); ++i) {
         try {
-            // Use time 0 to get the latest available transform
-            wp.utmPose().header.stamp = rclcpp::Time(0);
-            geometry_msgs::msg::PoseStamped odom_wp = tf_buffer_.transform(wp.utmPose(), odom_frame_id);
-            wp.setOdomPose(odom_wp.pose);
+            waypoints[i].utmPose().header.stamp = rclcpp::Time(0);
+            geometry_msgs::msg::PoseStamped odom_wp = tf_buffer_.transform(waypoints[i].utmPose(), odom_frame_id);
+            waypoints[i].setOdomPose(odom_wp.pose);
         } catch (tf2::TransformException& ex) {
             RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), 2000, "TF Link UTM->ODOM failed: %s",
                                   ex.what());
-            return;
+            return; 
         }
     }
 
-    // --- STEP 2: PATH GENERATION ---
+    // --- STEP 3: PATH GENERATION and Satisfying min_spline_length ---
     nav_msgs::msg::Path path;
     path.header.frame_id = odom_frame_id;
     path.header.stamp = msg->header.stamp;  // Sync path time to the GPS update time
 
     double cumulative_length = 0.0;
-    size_t used_count = 0;
+    gps_waypoint start_wp;
+    start_wp.setOdomPose(current_pose);
+    const gps_waypoint* start_ptr = &start_wp;
 
-    // Start the spline from the robot's current position
-    gps_waypoint current_wp;
-    current_wp.setOdomPose(current_pose);
-
-    const gps_waypoint* start_ptr = &current_wp;
-
-    for (size_t i = 0; i < waypoints.size(); ++i) {
+    // Start building from the current_waypoint_index_global forward
+    for (int i = current_waypoint_index_global; i < waypoints.size(); ++i) {
         auto segment = gps_waypoint_spline::SplineFactory::generate(waypoints[i].method(), *start_ptr, waypoints[i]);
-        start_ptr = &waypoints[i];
-
+        
         for (const auto& pose : segment) {
             geometry_msgs::msg::PoseStamped ps;
             ps.header = path.header;
@@ -192,23 +207,24 @@ void yet_another_gps_publisher::gps_odom_callback(const nav_msgs::msg::Odometry:
             path.poses.push_back(ps);
         }
 
-        // Calculate length of this segment to see if we've met the min_spline_length requirement
-        for (size_t j = 1; j < segment.size(); ++j) {
-            cumulative_length += std::hypot(segment[j].position.x - segment[j - 1].position.x,
+        // Calculate length of this segment to see if we've met the min_spline_length parameter
+        for (int j = 1; j < segment.size(); ++j) {
+            cumulative_length += std::hypot(segment[j].position.x - segment[j - 1].position.x, 
                                             segment[j].position.y - segment[j - 1].position.y);
         }
 
-        used_count = i + 1;
+        start_ptr = &waypoints[i];
         if (cumulative_length >= min_spline_length) break;
-    }
+    } // end for loop
 
-    // --- STEP 3: PUBLISH ---
+    // --- STEP 4: PUBLISH ---
     if (cumulative_length >= min_spline_length) {
         path_pub->publish(path);
     } else {
         RCLCPP_DEBUG(this->get_logger(), "GPS path too short (%.2f m), waiting for more waypoints", cumulative_length);
     }
 }
+
 // gps_waypoint constructor implementation
 gps_waypoint::gps_waypoint(double lon, double lat, const std::string& method, double radius)
     : longitude_(lon), latitude_(lat), method_(method), radius_(radius) {}
