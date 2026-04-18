@@ -23,6 +23,10 @@ public:
     void setUtmPose(const geometry_msgs::msg::PoseStamped& pose) { utm_pose_ = pose; }
     geometry_msgs::msg::PoseStamped& utmPose() { return utm_pose_; }
 
+    // Store the map-frame pose (for path generation)
+    void setMapPose(const geometry_msgs::msg::Pose& pose) { map_pose_ = pose; }
+    const geometry_msgs::msg::Pose& mapPose() const { return map_pose_; }
+
 private:
     double longitude_ = 0.0;
     double latitude_ = 0.0;
@@ -30,4 +34,5 @@ private:
     double radius_ = 0.0;
     geometry_msgs::msg::PoseStamped utm_pose_;
     geometry_msgs::msg::Pose odom_pose;
+    geometry_msgs::msg::Pose map_pose_;
 };

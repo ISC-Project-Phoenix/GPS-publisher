@@ -22,6 +22,7 @@ private:
     std::string odom_topic;
     std::string utm_frame_id;
     std::string odom_frame_id;
+    std::string map_frame_id;
     // paramters for waypoint file loading
     std::string waypoint_file_path;
     std::string waypoint_file_topic;
@@ -30,10 +31,10 @@ private:
     /// Parameters for confidence
     double max_gps_variance;  // Threshold in meters squared
     bool is_gps_valid = false;
+    bool do_gps_variance_check = false;
 
-
-    size_t current_waypoint_index_global = 0; 
-    double arrival_threshold = 2.0; // Meters; adjust based on robot size/speed
+    size_t current_waypoint_index_global = 0;
+    double arrival_threshold = 2.0;  // Meters; adjust based on robot size/speed
 
     // Subscribers
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub;
