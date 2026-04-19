@@ -55,10 +55,12 @@ yet_another_gps_publisher::yet_another_gps_publisher(const rclcpp::NodeOptions& 
     gps_odom_sub = this->create_subscription<nav_msgs::msg::Odometry>(
         "/odometry/gps", 10, std::bind(&yet_another_gps_publisher::gps_odom_callback, this, std::placeholders::_1));
 
-    // Load waypoints directly on startup!
-    // TODO catch failure and maybe retry later if file not found, instead of just crashing or doing nothing.
-    // TODO this should happen after the GPS is loaded!
-    load_waypoints(waypoint_file_path);
+    // Load waypoints and initialize iterator
+    if (load_waypoints(waypoint_file_path)) {
+        current_waypoint_it_ = waypoint_list_.begin();
+    } else {
+        RCLCPP_ERROR(this->get_logger(), "Failed to load waypoints. Node will not publish paths.");
+    }
 }
 
 // Odom callback
@@ -92,7 +94,7 @@ void yet_another_gps_publisher::raw_gps_callback(const sensor_msgs::msg::NavSatF
     is_gps_valid = true;
 }
 
-// standard function to load waypoints from file on startup
+// Load waypoints from file into std::list
 bool yet_another_gps_publisher::load_waypoints(const std::string& file_path) {
     std::ifstream file(file_path);
     if (!file.is_open()) {
@@ -100,6 +102,7 @@ bool yet_another_gps_publisher::load_waypoints(const std::string& file_path) {
         return false;
     }
 
+    waypoint_list_.clear();
     std::string line;
     int line_num = 0;
     while (std::getline(file, line)) {
@@ -136,7 +139,7 @@ bool yet_another_gps_publisher::load_waypoints(const std::string& file_path) {
     return true;
 }
 
-// Transform waypoint from lat/lon to odom
+// Transform waypoint from lat/lon to UTM and store
 bool yet_another_gps_publisher::transformWaypoint(gps_waypoint& wp) {
     geographic_msgs::msg::GeoPoint geo;
     geo.latitude = wp.latitude();
@@ -159,24 +162,31 @@ bool yet_another_gps_publisher::transformWaypoint(gps_waypoint& wp) {
     return true;
 }
 
-// gps callback: generate and publish spline
+// Advance iterator to next waypoint (safe)
+void yet_another_gps_publisher::advance_to_next_waypoint() {
+    if (current_waypoint_it_ != waypoint_list_.end()) {
+        ++current_waypoint_it_;
+    }
+}
+
+// GPS odom callback: generate spline path from robot to remaining waypoints
 void yet_another_gps_publisher::gps_odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
-    // Guard: Don't calculate paths if waypoints aren't loaded or GPS is unreliable
-    if (!is_gps_valid || waypoints.empty() || current_waypoint_index_global >= waypoints.size()) {
+    // Guard conditions
+    if (!is_gps_valid || waypoint_list_.empty() || current_waypoint_it_ == waypoint_list_.end()) {
         return;
     }
 
     // Robot pose from GPS is in map frame
     geometry_msgs::msg::Pose robot_pose_map = msg->pose.pose;
 
-    // Transform waypoints from UTM to map
-    std::vector<geometry_msgs::msg::Pose> waypoints_in_map;
-    for (size_t i = current_waypoint_index_global; i < waypoints.size(); ++i) {
+    // Transform all remaining waypoints from UTM to map (we'll need them for arrival check and spline)
+    std::vector<std::pair<gps_waypoint*, geometry_msgs::msg::Pose>> remaining_waypoints;
+    for (auto it = current_waypoint_it_; it != waypoint_list_.end(); ++it) {
         try {
-            waypoints[i].utmPose().header.stamp = rclcpp::Time(0);
+            it->utmPose().header.stamp = rclcpp::Time(0);
             geometry_msgs::msg::PoseStamped map_wp = tf_buffer_.transform(
-                waypoints[i].utmPose(), map_frame_id, std::chrono::milliseconds(100));
-            waypoints_in_map.push_back(map_wp.pose);
+                it->utmPose(), map_frame_id, std::chrono::milliseconds(100));
+            remaining_waypoints.emplace_back(&(*it), map_wp.pose);
         } catch (tf2::TransformException& ex) {
             RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
                                  "TF UTM->MAP failed: %s", ex.what());
@@ -184,35 +194,56 @@ void yet_another_gps_publisher::gps_odom_callback(const nav_msgs::msg::Odometry:
         }
     }
 
-    // Arrival check in map frame
-    const auto& target_wp_map = waypoints_in_map[0];
-    double dist_to_target = std::hypot(
-        robot_pose_map.position.x - target_wp_map.position.x,
-        robot_pose_map.position.y - target_wp_map.position.y);
-    if (dist_to_target < arrival_threshold) {
-        RCLCPP_INFO(this->get_logger(), "Passed waypoint %zu!", current_waypoint_index_global);
-        current_waypoint_index_global++;
-        if (current_waypoint_index_global >= waypoints.size()) return;
-        return; // Wait for next callback to process new target
+    // Skip waypoints that we've already arrived at
+    while (!remaining_waypoints.empty()) {
+        const auto& target_pose = remaining_waypoints[0].second;
+        double dist_to_target = std::hypot(
+            robot_pose_map.position.x - target_pose.position.x,
+            robot_pose_map.position.y - target_pose.position.y);
+        if (dist_to_target >= arrival_threshold) {
+            break;  // first non-arrived waypoint found
+        }
+        // Arrived at this waypoint; advance and remove from list
+        RCLCPP_INFO(this->get_logger(), "Passed waypoint (arrival distance %.2f < %.2f)",
+                    dist_to_target, arrival_threshold);
+        advance_to_next_waypoint();
+        remaining_waypoints.erase(remaining_waypoints.begin());
     }
 
-    // Generate path in map frame
+    // If no remaining waypoints, we're done
+    if (remaining_waypoints.empty()) {
+        RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 5000, "All waypoints reached.");
+        return;
+    }
+
+    // Build path by daisy-chaining splines from robot to first waypoint, then between waypoints
     nav_msgs::msg::Path path_map;
     path_map.header.frame_id = map_frame_id;
     path_map.header.stamp = msg->header.stamp;
 
     double cumulative_length = 0.0;
-    gps_waypoint start_wp;
 
-    // TODO start from robot or use the raw path?
+    // Create a virtual start waypoint at robot's current pose with a default method
+    gps_waypoint start_wp(0.0, 0.0, "line");  // use "line" method for first segment
     start_wp.setMapPose(robot_pose_map);
-    const gps_waypoint* start_ptr = &start_wp;
 
-    for (size_t i = 0; i < waypoints_in_map.size(); ++i) {
-        gps_waypoint end_wp = waypoints[current_waypoint_index_global + i];
-        end_wp.setMapPose(waypoints_in_map[i]);
-        auto segment = gps_waypoint_spline::SplineFactory::generate(end_wp.method(), *start_ptr, end_wp);
+    gps_waypoint prev_wp = start_wp;  // copy, not pointer
 
+    for (auto& pair : remaining_waypoints) {
+        gps_waypoint* wp_ptr = pair.first;
+        const geometry_msgs::msg::Pose& map_pose = pair.second;
+
+        // Set map pose into the waypoint for spline generation
+        wp_ptr->setMapPose(map_pose);
+
+        // Generate spline segment from prev_wp to current waypoint
+        auto segment = gps_waypoint_spline::SplineFactory::generate(wp_ptr->method(), prev_wp, *wp_ptr);
+        if (segment.empty()) {
+            RCLCPP_WARN(this->get_logger(), "Spline generation failed, stopping chain.");
+            break;
+        }
+
+        // Add segment poses to path
         for (const auto& pose : segment) {
             geometry_msgs::msg::PoseStamped ps;
             ps.header = path_map.header;
@@ -220,16 +251,22 @@ void yet_another_gps_publisher::gps_odom_callback(const nav_msgs::msg::Odometry:
             path_map.poses.push_back(ps);
         }
 
-        // Length calculation
+        // Calculate cumulative length
         for (size_t j = 1; j < segment.size(); ++j) {
             cumulative_length += std::hypot(segment[j].position.x - segment[j-1].position.x,
                                             segment[j].position.y - segment[j-1].position.y);
         }
-        start_ptr = &end_wp;
-        if (cumulative_length >= min_spline_length) break;
+
+        // Update previous waypoint for next iteration (copy)
+        prev_wp = *wp_ptr;
+
+        // Stop if we've reached the minimum required path length
+        if (cumulative_length >= min_spline_length) {
+            break;
+        }
     }
 
-    // Transform entire path to odom frame
+    // Transform path to odom frame and publish if it works
     nav_msgs::msg::Path path_odom;
     try {
         auto transform = tf_buffer_.lookupTransform(odom_frame_id, map_frame_id, tf2::TimePointZero);

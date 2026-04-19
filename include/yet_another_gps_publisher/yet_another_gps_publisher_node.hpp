@@ -1,6 +1,8 @@
 #pragma once
 
-#include <deque>
+#include <list>        // for doubly linked list
+#include <string>
+#include <deque>       // not used anymore, but you can keep includes
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 #include "geodesy/utm.h"
@@ -58,8 +60,15 @@ private:
     // Brace initialization zeros it out
     geometry_msgs::msg::Pose current_pose{};
 
-    // List of pending waypoints (already transformed to odom)
-    std::deque<gps_waypoint> waypoints;
+    // Doubly linked list of pending waypoints (already transformed to UTM in memory)
+    std::list<gps_waypoint> waypoint_list_;
+
+    // Iterator pointing to the next waypoint the robot should head toward.
+    // Initially set to waypoint_list_.begin() after loading.
+    std::list<gps_waypoint>::iterator current_waypoint_it_;
+
+    // Helper to advance the iterator safely
+    void advance_to_next_waypoint();
 
     // Callbacks
     void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg);
