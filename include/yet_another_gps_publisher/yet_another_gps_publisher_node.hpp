@@ -1,8 +1,7 @@
 #pragma once
 
-#include <list>        // for doubly linked list
+#include <list>  // for doubly linked list
 #include <string>
-#include <deque>       // not used anymore, but you can keep includes
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 #include "geodesy/utm.h"
@@ -20,12 +19,12 @@ public:
     explicit yet_another_gps_publisher(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
 
 private:
-    // Parameters for locatization and topics.
+    // Parameters for localization and topics.
     std::string odom_topic;
     std::string utm_frame_id;
     std::string odom_frame_id;
     std::string map_frame_id;
-    // paramters for waypoint file loading
+    // parameters for waypoint file loading
     std::string waypoint_file_path;
     std::string waypoint_file_topic;
     // parameters for spline configs
@@ -35,36 +34,33 @@ private:
     bool is_gps_valid = false;
     bool do_gps_variance_check = false;
 
-    size_t current_waypoint_index_global = 0;
-    double arrival_threshold = 2.0;  // Meters; adjust based on robot size/speed
+    double arrival_threshold = 2.0;  // Meters
 
     // Subscribers
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub;
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr waypoint_file_sub;
 
-    // New GPS subscribers
+    // GPS subscribers
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr gps_odom_sub;
     rclcpp::Subscription<sensor_msgs::msg::NavSatFix>::SharedPtr raw_gps_sub;
 
     // Publisher
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub;
 
-    // Timer for periodic spline generation
+    // Timer unused ircc
     rclcpp::TimerBase::SharedPtr timer;
 
     // TF
     tf2_ros::Buffer tf_buffer_;
     tf2_ros::TransformListener tf_listener_;
 
-    // Current robot pose in odom frame (from odometry)
-    // Brace initialization zeros it out
+    // Current robot pose (from odometry)
     geometry_msgs::msg::Pose current_pose{};
 
-    // Doubly linked list of pending waypoints (already transformed to UTM in memory)
-    std::list<gps_waypoint> waypoint_list_;
+    // Doubly linked list of waypoints
+    std::list<gps_waypoint> waypoints;
 
-    // Iterator pointing to the next waypoint the robot should head toward.
-    // Initially set to waypoint_list_.begin() after loading.
+    // Iterator to next target waypoint
     std::list<gps_waypoint>::iterator current_waypoint_it_;
 
     // Helper to advance the iterator safely
@@ -82,5 +78,6 @@ private:
     bool load_waypoints(const std::string& file_path);
 
     // Helper: transform a waypoint from lat/lon to odom frame using TF
+    // unused ircc
     bool transformWaypoint(gps_waypoint& wp);
 };
