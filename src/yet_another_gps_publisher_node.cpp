@@ -38,7 +38,7 @@ yet_another_gps_publisher::yet_another_gps_publisher(const rclcpp::NodeOptions& 
     map_frame_id = this->declare_parameter<std::string>("map_frame_id", "map");
     // TODO actually set this parameter from launch file or command line, not hardcoded.
     // TODO indentify where this file should be stored?
-    waypoint_file_path = this->declare_parameter<std::string>("gps_points_files", "gps_waypoints_parking_lot_mk1.txt");
+    waypoint_file_path = this->declare_parameter<std::string>("gps_points_files", "/home/isc/Documents/dev/phnx_ws_2026/src/gps_publisher/src/gps_waypoints_parking_lot_mk1.txt");
 
     // Publisher
     path_pub = this->create_publisher<nav_msgs::msg::Path>("/path", 5);
