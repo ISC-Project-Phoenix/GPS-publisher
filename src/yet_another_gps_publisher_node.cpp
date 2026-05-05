@@ -179,7 +179,21 @@ void yet_another_gps_publisher::gps_odom_callback(const nav_msgs::msg::Odometry:
     if (!is_gps_valid || waypoints.empty()) {
         return;
     }
-    geometry_msgs::msg::Pose robot_postion = msg->pose.pose;
+
+    geometry_msgs::msg::Pose robot_pose_map;
+    try {
+        geometry_msgs::msg::PoseStamped ps_in;
+        ps_in.header = msg->header;              // frame_id from /odometry/gps (likely "odom")
+        ps_in.pose = msg->pose.pose;
+        auto ps_out = tf_buffer_.transform(ps_in, map_frame_id, std::chrono::milliseconds(100));
+        robot_pose_map = ps_out.pose;
+    } catch (tf2::TransformException& ex) {
+        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
+                             "TF /odometry/gps -> map failed: %s", ex.what());
+        return;
+    }
+
+    geometry_msgs::msg::Pose robot_postion = robot_pose_map; //msg->pose.pose;
 
     size_t checked = 0;
     const size_t N = waypoints.size();
