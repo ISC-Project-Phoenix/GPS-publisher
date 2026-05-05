@@ -19,7 +19,7 @@ yet_another_gps_publisher::yet_another_gps_publisher(const rclcpp::NodeOptions& 
     max_gps_variance = this->declare_parameter<double>("max_gps_variance", 0.1);
 
     // true for do GPS varance check false if not.
-    do_gps_variance_check = this->declare_parameter<bool>("do_gps_variance_check", false);
+    do_gps_variance_check = this->declare_parameter<bool>("do_gps_variance_check", true);
 
     // This is the mimium size of the spline as required by the controls team. If its too short they cannot plan ahead of corners enough.
     min_spline_length = this->declare_parameter<double>("min_spline_length", 10.0);
@@ -78,9 +78,18 @@ void yet_another_gps_publisher::raw_gps_callback(const sensor_msgs::msg::NavSatF
 
     // Status < 0 means NO_FIX.
     // We also check the covariance (diagonal [0] is Easting, [7] is Northing)
+    // int8 STATUS_NO_FIX =  -1        # unable to fix position
+    // int8 STATUS_FIX =      0        # unaugmented fix
+    // int8 STATUS_SBAS_FIX = 1        # with satellite-based augmentation
+    // int8 STATUS_GBAS_FIX = 2        # with ground-based augmentation
+    // https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/NavSatStatus.html
     if (msg->status.status < sensor_msgs::msg::NavSatStatus::STATUS_FIX) {
         RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000, "GPS Lost Fix!");
         is_gps_valid = false;
+        return;
+    }
+
+    if (max_gps_variance <= 0) {
         return;
     }
 
