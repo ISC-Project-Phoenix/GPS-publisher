@@ -200,7 +200,7 @@ void yet_another_gps_publisher::gps_odom_callback(const nav_msgs::msg::Odometry:
 
         double dist = std::hypot(robot_postion.position.x - wp_map_pose.position.x,
                                  robot_postion.position.y - wp_map_pose.position.y);
-        if (dist >= arrival_threshold) break;  // not arrived yet → stop skipping
+        if (dist >= arrival_threshold) break;  // not arrived yet do not skipping
 
         RCLCPP_INFO(this->get_logger(), "Passed waypoint (distance %.2f < %.2f)", dist, arrival_threshold);
         advance_to_next_waypoint();  // ++it, wraps to begin() if at end
@@ -289,6 +289,7 @@ void yet_another_gps_publisher::gps_odom_callback(const nav_msgs::msg::Odometry:
         path_odom.header.frame_id = odom_frame_id;
         path_odom.header.stamp = path_map.header.stamp;
     } catch (tf2::TransformException& ex) {
+        // apparently the map look up has failed! 
         RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000, "TF MAP->ODOM failed: %s", ex.what());
         return;
     }
