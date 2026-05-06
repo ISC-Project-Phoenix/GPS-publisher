@@ -19,7 +19,7 @@ yet_another_gps_publisher::yet_another_gps_publisher(const rclcpp::NodeOptions& 
     max_gps_variance = this->declare_parameter<double>("max_gps_variance", 0.1);
 
     // true for do GPS varance check false if not.
-    do_gps_variance_check = this->declare_parameter<bool>("do_gps_variance_check", true);
+    do_gps_variance_check = this->declare_parameter<bool>("do_gps_variance_check", false);
 
     // This is the mimium size of the spline as required by the controls team. If its too short they cannot plan ahead of corners enough.
     min_spline_length = this->declare_parameter<double>("min_spline_length", 10.0);
@@ -29,7 +29,7 @@ yet_another_gps_publisher::yet_another_gps_publisher(const rclcpp::NodeOptions& 
     arrival_threshold = this->declare_parameter<double>("arrival_threshold", 2.0);
 
     // why the odom topic is a parameter: in sim we use the filtered odometry from the sim, but on the real robot we might want to use a different topic or maybe even have it remapped from the sim topic to the real topic.
-    odom_topic = this->declare_parameter<std::string>("odom_topic", "/odometry/filtered");
+    odom_topic = this->declare_parameter<std::string>("odom_topic", "/odometry/gps/filtered");
     // This is the utm Frame. Keep in might dearborn and purdue have different utm zones, so this might be necessary to change when we switch between the two or where ever you are.
     utm_frame_id = this->declare_parameter<std::string>("utm_frame_id", "utm");
     // This is the odom frame we will translate the spline into.
@@ -53,7 +53,7 @@ yet_another_gps_publisher::yet_another_gps_publisher(const rclcpp::NodeOptions& 
 
     // Subscribe to NavSat Transform output to trigger spline generation
     gps_odom_sub = this->create_subscription<nav_msgs::msg::Odometry>(
-        "/odometry/gps", 10, std::bind(&yet_another_gps_publisher::gps_odom_callback, this, std::placeholders::_1));
+        "/odometry/navsat_gps", 10, std::bind(&yet_another_gps_publisher::gps_odom_callback, this, std::placeholders::_1));
 
     // Load waypoints and initialize iterator
     if (load_waypoints(waypoint_file_path)) {
@@ -227,7 +227,7 @@ void yet_another_gps_publisher::gps_odom_callback(const nav_msgs::msg::Odometry:
 
         RCLCPP_INFO(this->get_logger(), "Passed waypoint (distance %.2f < %.2f)", dist, arrival_threshold);
         advance_to_next_waypoint();  // ++it, wraps to begin() if at end
-        ++checked;
+        checked++;
     }
 
     if (checked >= N) {  // all waypoints reached → full lap done
@@ -249,10 +249,12 @@ void yet_another_gps_publisher::gps_odom_callback(const nav_msgs::msg::Odometry:
     // the look ahead scanner.
     auto segment_it = current_waypoint_it_;
     size_t processed = 0;
+    const size_t n = waypoints.size();
 
-    while (segment_it != waypoints.end() && cumulative_length < min_spline_length) {
+    while (cumulative_length < min_spline_length) {
         gps_waypoint& wp = *segment_it;
-
+	processed++;
+	
         // Transform this waypoint to map frame
         geometry_msgs::msg::Pose map_pose;
         try {
@@ -284,8 +286,8 @@ void yet_another_gps_publisher::gps_odom_callback(const nav_msgs::msg::Odometry:
 
         // Calculate cumulative length
         for (size_t j = 1; j < segment.size(); ++j) {
-            cumulative_length += std::hypot(segment[j].position.x - segment[j - 1].position.x,
-                                            segment[j].position.y - segment[j - 1].position.y);
+            cumulative_length += std::abs( std::hypot(segment[j].position.x - segment[j - 1].position.x,
+                                            segment[j].position.y - segment[j - 1].position.y) );
         }
 
         prev_wp = wp;  // shift anchor
