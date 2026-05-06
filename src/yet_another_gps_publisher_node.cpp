@@ -7,6 +7,9 @@
 #include <memory>
 #include <sstream>
 
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+
 #include "yet_another_gps_publisher/spline_factory.hpp"
 
 // Constructor
@@ -309,6 +312,7 @@ void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometr
         for (const auto& ps : path_map.poses) {
             geometry_msgs::msg::PoseStamped ps_out;
             tf2::doTransform(ps, ps_out, transform);
+
             ps_out.header.frame_id = odom_frame_id;
             ps_out.header.stamp = path_map.header.stamp;
             path_odom.poses.push_back(ps_out);
@@ -322,7 +326,20 @@ void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometr
     }
 
     if (cumulative_length >= min_spline_length) {
+        // Apply +90 deg pitch (rotate around Y axis)
+        tf2::Quaternion pitch_rotation;
+        pitch_rotation.setRPY(0.0, M_PI / 2.0, 0.0);  // roll=0, pitch=+90°, yaw=0
+
+        for (auto& pose_stamped : path_odom.poses) {
+            tf2::Quaternion original_q, rotated_q;
+            tf2::fromMsg(pose_stamped.pose.orientation, original_q);
+            rotated_q = pitch_rotation * original_q;   // rotate the heading by +90° pitch
+            pose_stamped.pose.orientation = tf2::toMsg(rotated_q);
+        }
+
+        // Now publish the rotated path
         path_pub->publish(path_odom);
+
     } else {
         RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 0, "GPS path too short (%.2f m)",
                              (double)cumulative_length);
