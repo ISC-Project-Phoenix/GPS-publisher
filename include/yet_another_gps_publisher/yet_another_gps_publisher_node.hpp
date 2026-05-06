@@ -71,7 +71,7 @@ private:
     void timer_callback();
 
     // GPS specific Callbacks
-    void gps_odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg);
+    void global_ekf_callback(const nav_msgs::msg::Odometry::SharedPtr msg);
     void raw_gps_callback(const sensor_msgs::msg::NavSatFix::SharedPtr msg);
 
     // helper to load waypoints from file

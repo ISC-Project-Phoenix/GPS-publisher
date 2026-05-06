@@ -38,15 +38,15 @@ yet_another_gps_publisher::yet_another_gps_publisher(const rclcpp::NodeOptions& 
     map_frame_id = this->declare_parameter<std::string>("map_frame_id", "map");
     // TODO actually set this parameter from launch file or command line, not hardcoded.
     // TODO indentify where this file should be stored?
-    waypoint_file_path = this->declare_parameter<std::string>("gps_points_files", "/home/isc/Documents/dev/phnx_ws_2026/src/gps_publisher/src/gps_waypoints_parking_lot_mk1.txt");
+    waypoint_file_path = this->declare_parameter<std::string>(
+        "waypoint_file_path",
+        "/home/isc/Documents/dev/phnx_ws_2026/src/gps_publisher/src/gps_waypoints_parking_lot_mk1.txt");
 
     // Publisher
     path_pub = this->create_publisher<nav_msgs::msg::Path>("/path", 5);
 
     // Subscribers
-    odom_sub = this->create_subscription<nav_msgs::msg::Odometry>(
-        odom_topic, 10, std::bind(&yet_another_gps_publisher::odom_callback, this, std::placeholders::_1));
-
+    
     // Subscribe to Raw GPS to check the fix status (VectorNav)
     raw_gps_sub = this->create_subscription<sensor_msgs::msg::NavSatFix>(
         "/phoenix/navsat", 10, std::bind(&yet_another_gps_publisher::raw_gps_callback, this, std::placeholders::_1));
@@ -58,14 +58,15 @@ yet_another_gps_publisher::yet_another_gps_publisher(const rclcpp::NodeOptions& 
     // Load waypoints and initialize iterator
     if (load_waypoints(waypoint_file_path)) {
         current_waypoint_it_ = waypoints.begin();
+        RCLCPP_INFO(this->get_logger(), "Loaded %zu waypoints from file.", waypoints.size());
     } else {
-        RCLCPP_ERROR(this->get_logger(), "Failed to load waypoints. Node will not publish paths.");
+        while (true){
+            // FAIL LOUDLY
+            RCLCPP_ERROR(this->get_logger(), "Failed to load waypoints. Node will not publish paths.");
+            RCLCPP_INFO(this->get_logger(), "Loaded %zu waypoints from file.", waypoints.size());
+            rclcpp::sleep_for(std::chrono::milliseconds(2000));
+        }
     }
-}
-
-// Odom callback
-void yet_another_gps_publisher::odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
-    current_pose = msg->pose.pose;
 }
 
 // The Confidence Check + RAW GPS callback
@@ -145,6 +146,7 @@ bool yet_another_gps_publisher::load_waypoints(const std::string& file_path) {
                     spline_type.c_str(), lon, lat);
     }
     file.close();
+    if ( line_num < 5 ) return false;
     return true;
 }
 
@@ -183,7 +185,7 @@ void yet_another_gps_publisher::advance_to_next_waypoint() {
 }
 
 // generate spline path from robot until we exceed max spline
-void yet_another_gps_publisher::gps_odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
+void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
     // Guard conditions
     if (!is_gps_valid || waypoints.empty()) {
         return;
@@ -192,17 +194,17 @@ void yet_another_gps_publisher::gps_odom_callback(const nav_msgs::msg::Odometry:
     geometry_msgs::msg::Pose robot_pose_map;
     try {
         geometry_msgs::msg::PoseStamped ps_in;
-        ps_in.header = msg->header;              // frame_id from /odometry/gps (likely "odom")
+        ps_in.header = msg->header;  // frame_id from /odometry/gps (likely "odom")
         ps_in.pose = msg->pose.pose;
         auto ps_out = tf_buffer_.transform(ps_in, map_frame_id, std::chrono::milliseconds(100));
         robot_pose_map = ps_out.pose;
     } catch (tf2::TransformException& ex) {
-        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000,
-                             "TF /odometry/gps -> map failed: %s", ex.what());
+        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000, "TF /odometry/gps -> map failed: %s",
+                             ex.what());
         return;
     }
 
-    geometry_msgs::msg::Pose robot_postion = robot_pose_map; //msg->pose.pose;
+    geometry_msgs::msg::Pose robot_postion = robot_pose_map;  //msg->pose.pose;
 
     size_t checked = 0;
     const size_t N = waypoints.size();
@@ -294,7 +296,7 @@ void yet_another_gps_publisher::gps_odom_callback(const nav_msgs::msg::Odometry:
         ++segment_it;  // advance the scanning pointer
         processed++;
 
-        // stop if we’ve walked the whole list without hitting the length.
+        // to stop if we’ve walked the whole list without hitting the length.
         // TODO decide is we still wnat to publish?
         // should probably warn though. I dont see this ever being a problem though.
         if (processed >= waypoints.size()) break;
@@ -314,15 +316,15 @@ void yet_another_gps_publisher::gps_odom_callback(const nav_msgs::msg::Odometry:
         path_odom.header.frame_id = odom_frame_id;
         path_odom.header.stamp = path_map.header.stamp;
     } catch (tf2::TransformException& ex) {
-        // apparently the map look up has failed! 
-        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000, "TF MAP->ODOM failed: %s", ex.what());
+        // apparently the map look up has failed!
+        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 0, "TF MAP->ODOM failed: %s", ex.what());
         return;
     }
 
     if (cumulative_length >= min_spline_length) {
         path_pub->publish(path_odom);
     } else {
-        RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 5000, "GPS path too short (%.2f m)",
+        RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 0, "GPS path too short (%.2f m)",
                              cumulative_length);
     }
 }
