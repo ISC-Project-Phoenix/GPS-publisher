@@ -53,7 +53,7 @@ yet_another_gps_publisher::yet_another_gps_publisher(const rclcpp::NodeOptions& 
 
     // Subscribe to NavSat Transform output to trigger spline generation
     gps_odom_sub = this->create_subscription<nav_msgs::msg::Odometry>(
-        "/odometry/navsat_gps", 10, std::bind(&yet_another_gps_publisher::gps_odom_callback, this, std::placeholders::_1));
+        "/odometry/navsat_gps", 10, std::bind(&yet_another_gps_publisher::global_ekf_callback, this, std::placeholders::_1));
 
     // Load waypoints and initialize iterator
     if (load_waypoints(waypoint_file_path)) {
@@ -325,7 +325,7 @@ void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometr
         path_pub->publish(path_odom);
     } else {
         RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 0, "GPS path too short (%.2f m)",
-                             cumulative_length);
+                             (double)N);
     }
 }
 
