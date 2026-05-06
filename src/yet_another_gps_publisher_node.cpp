@@ -325,7 +325,7 @@ void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometr
         path_pub->publish(path_odom);
     } else {
         RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 0, "GPS path too short (%.2f m)",
-                             (double)N);
+                             (double)cumulative_length);
     }
 }
 

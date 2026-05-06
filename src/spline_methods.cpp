@@ -39,8 +39,8 @@ std::vector<geometry_msgs::msg::Pose> SplineFactory::generate(const std::string&
 // ------------------------------------------------------------------
 
 static std::vector<geometry_msgs::msg::Pose> linearGenerator(const gps_waypoint& start, const gps_waypoint& end) {
-    const auto& a = start.odomPose().position;
-    const auto& b = end.odomPose().position;
+    const auto& a = start.mapPose().position;
+    const auto& b = end.mapPose().position;
 
     const int num_points = 10;  // TODO this shouldnt be hardcoded like EVER
     std::vector<geometry_msgs::msg::Pose> points;
@@ -64,8 +64,8 @@ static std::vector<geometry_msgs::msg::Pose> circleGenerator(const gps_waypoint&
         return linearGenerator(start, end);
     }
 
-    const auto& a = start.odomPose().position;
-    const auto& b = end.odomPose().position;
+    const auto& a = start.mapPose().position;
+    const auto& b = end.mapPose().position;
 
     double dx = b.x - a.x;
     double dy = b.y - a.y;
