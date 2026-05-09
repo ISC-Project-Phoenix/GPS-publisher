@@ -40,7 +40,7 @@ yet_another_gps_publisher::yet_another_gps_publisher(const rclcpp::NodeOptions& 
     // this is the MAP frame that we will store the waypoints in over time.
     map_frame_id = this->declare_parameter<std::string>("map_frame_id", "map");
     // This is the robot's body frame (e.g., base_link) – the path is transformed here so the kart is at (0,0)
-    robot_origin_frame_id = this->declare_parameter<std::string>("robot_origin_frame_id", "base_link");
+    // robot_origin_frame_id = this->declare_parameter<std::string>("robot_origin_frame_id", "base_link");
     // TODO actually set this parameter from launch file or command line, not hardcoded.
     // TODO indentify where this file should be stored?
     waypoint_file_path = this->declare_parameter<std::string>(
@@ -345,7 +345,7 @@ void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometr
         }
 
         // Now publish the rotated path
-        path_pub->publish(path_body);
+        path_pub->publish(path_odom);
 
     } else {
         RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 0, "GPS path too short (%.2f m)",
