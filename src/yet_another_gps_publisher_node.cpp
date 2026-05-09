@@ -1,13 +1,13 @@
 #include "yet_another_gps_publisher/yet_another_gps_publisher_node.hpp"
 
+#include <tf2/LinearMath/Quaternion.h>
+
 #include <chrono>
 #include <cmath>
 #include <fstream>
 #include <geographic_msgs/msg/geo_point.hpp>
 #include <memory>
 #include <sstream>
-
-#include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 #include "yet_another_gps_publisher/spline_factory.hpp"
@@ -49,21 +49,22 @@ yet_another_gps_publisher::yet_another_gps_publisher(const rclcpp::NodeOptions& 
     path_pub = this->create_publisher<nav_msgs::msg::Path>("/path", 5);
 
     // Subscribers
-    
+
     // Subscribe to Raw GPS to check the fix status (VectorNav)
     raw_gps_sub = this->create_subscription<sensor_msgs::msg::NavSatFix>(
         "/phoenix/navsat", 10, std::bind(&yet_another_gps_publisher::raw_gps_callback, this, std::placeholders::_1));
 
     // Subscribe to NavSat Transform output to trigger spline generation
     gps_odom_sub = this->create_subscription<nav_msgs::msg::Odometry>(
-        "/odometry/navsat_gps", 10, std::bind(&yet_another_gps_publisher::global_ekf_callback, this, std::placeholders::_1));
+        "/odometry/navsat_gps", 10,
+        std::bind(&yet_another_gps_publisher::global_ekf_callback, this, std::placeholders::_1));
 
     // Load waypoints and initialize iterator
     if (load_waypoints(waypoint_file_path)) {
         current_waypoint_it_ = waypoints.begin();
         RCLCPP_INFO(this->get_logger(), "Loaded %zu waypoints from file.", waypoints.size());
     } else {
-        while (true){
+        while (true) {
             // FAIL LOUDLY
             RCLCPP_ERROR(this->get_logger(), "Failed to load waypoints. Node will not publish paths.");
             RCLCPP_INFO(this->get_logger(), "Loaded %zu waypoints from file.", waypoints.size());
@@ -149,7 +150,7 @@ bool yet_another_gps_publisher::load_waypoints(const std::string& file_path) {
                     spline_type.c_str(), lon, lat);
     }
     file.close();
-    if ( line_num < 5 ) return false;
+    if (line_num < 5) return false;
     return true;
 }
 
@@ -194,10 +195,11 @@ void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometr
         return;
     }
 
-    geometry_msgs::msg::Pose robot_pose_map;
+    geometry_msgs::msg::Pose
+        robot_pose_map;  // its using the pose of the center of the map ot the robots pose in the map.
     try {
         geometry_msgs::msg::PoseStamped ps_in;
-        ps_in.header = msg->header;  // frame_id from /odometry/gps (likely "odom")
+        ps_in.header = msg->header;  // frame_id from /odometry/gps (likely "map origin")
         ps_in.pose = msg->pose.pose;
         auto ps_out = tf_buffer_.transform(ps_in, map_frame_id, std::chrono::milliseconds(100));
         robot_pose_map = ps_out.pose;
@@ -258,8 +260,8 @@ void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometr
 
     while (cumulative_length < min_spline_length) {
         gps_waypoint& wp = *segment_it;
-	processed++;
-	
+        processed++;
+
         // Transform this waypoint to map frame
         geometry_msgs::msg::Pose map_pose;
         try {
@@ -291,8 +293,8 @@ void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometr
 
         // Calculate cumulative length
         for (size_t j = 1; j < segment.size(); ++j) {
-            cumulative_length += std::abs( std::hypot(segment[j].position.x - segment[j - 1].position.x,
-                                            segment[j].position.y - segment[j - 1].position.y) );
+            cumulative_length += std::abs(std::hypot(segment[j].position.x - segment[j - 1].position.x,
+                                                     segment[j].position.y - segment[j - 1].position.y));
         }
 
         prev_wp = wp;  // shift anchor
@@ -305,40 +307,42 @@ void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometr
         if (processed >= waypoints.size()) break;
     }
 
-    // Transform to odom and publish
-    nav_msgs::msg::Path path_odom;
+    // Transform to robot's body frame (e.g., base_link) so that the robot sits at (0,0)
+    // Using the odometry message's child_frame_id to get the correct body frame name.
+    std::string body_frame = msg->child_frame_id;
+    nav_msgs::msg::Path path_body;
     try {
-        auto transform = tf_buffer_.lookupTransform(odom_frame_id, map_frame_id, tf2::TimePointZero);
+        auto transform = tf_buffer_.lookupTransform(body_frame, map_frame_id, tf2::TimePointZero);
         for (const auto& ps : path_map.poses) {
             geometry_msgs::msg::PoseStamped ps_out;
             tf2::doTransform(ps, ps_out, transform);
-
-            ps_out.header.frame_id = odom_frame_id;
+            ps_out.header.frame_id = body_frame;
             ps_out.header.stamp = path_map.header.stamp;
-            path_odom.poses.push_back(ps_out);
+            path_body.poses.push_back(ps_out);
         }
-        path_odom.header.frame_id = odom_frame_id;
-        path_odom.header.stamp = path_map.header.stamp;
+        path_body.header.frame_id = body_frame;
+        path_body.header.stamp = path_map.header.stamp;
     } catch (tf2::TransformException& ex) {
-        // apparently the map look up has failed!
-        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 0, "TF MAP->ODOM failed: %s", ex.what());
+        // TF lookup from map to body frame failed
+        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 0, "TF MAP->%s failed: %s", body_frame.c_str(),
+                             ex.what());
         return;
     }
 
     if (cumulative_length >= min_spline_length) {
-        // Apply +90 deg pitch (rotate around Y axis)
+        // Apply rotoations (but we dont have too at all)
         tf2::Quaternion pitch_rotation;
-        pitch_rotation.setRPY(0.0, M_PI / 2.0, 0.0);  // roll=0, pitch=+90°, yaw=0
+        pitch_rotation.setRPY(0.0, M_PI / 2.0, 0.0);  // roll=0, pitch=+0°, yaw=0
 
-        for (auto& pose_stamped : path_odom.poses) {
+        for (auto& pose_stamped : path_body.poses) {
             tf2::Quaternion original_q, rotated_q;
             tf2::fromMsg(pose_stamped.pose.orientation, original_q);
-            rotated_q = pitch_rotation * original_q;   // rotate the heading by +90° pitch
+            rotated_q = pitch_rotation * original_q;  // rotate the heading by +90° pitch
             pose_stamped.pose.orientation = tf2::toMsg(rotated_q);
         }
 
         // Now publish the rotated path
-        path_pub->publish(path_odom);
+        path_pub->publish(path_body);
 
     } else {
         RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 0, "GPS path too short (%.2f m)",
