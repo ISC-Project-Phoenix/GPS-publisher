@@ -39,6 +39,8 @@ yet_another_gps_publisher::yet_another_gps_publisher(const rclcpp::NodeOptions& 
     odom_frame_id = this->declare_parameter<std::string>("odom_frame_id", "odom");
     // this is the MAP frame that we will store the waypoints in over time.
     map_frame_id = this->declare_parameter<std::string>("map_frame_id", "map");
+    // This is the robot's body frame (e.g., base_link) – the path is transformed here so the kart is at (0,0)
+    robot_origin_frame_id = this->declare_parameter<std::string>("robot_origin_frame_id", "base_link");
     // TODO actually set this parameter from launch file or command line, not hardcoded.
     // TODO indentify where this file should be stored?
     waypoint_file_path = this->declare_parameter<std::string>(
@@ -201,7 +203,7 @@ void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometr
         geometry_msgs::msg::PoseStamped ps_in;
         ps_in.header = msg->header;  // frame_id from /odometry/gps (likely "map origin")
         ps_in.pose = msg->pose.pose;
-        auto ps_out = tf_buffer_.transform(ps_in, map_frame_id, std::chrono::milliseconds(100));
+        auto ps_out = tf_buffer_.transform(robot_origin_frame_id, map_frame_id, std::chrono::milliseconds(100));
         robot_pose_map = ps_out.pose;
     } catch (tf2::TransformException& ex) {
         RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000, "TF /odometry/gps -> map failed: %s",
@@ -334,7 +336,7 @@ void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometr
         tf2::Quaternion pitch_rotation;	// M_PI
         pitch_rotation.setRPY(0.0, 0.0, 0.0);  // roll=0, pitch=+90°, yaw=0
 
-        for (auto& pose_stamped : path_body.poses) {
+        for (auto& pose_stamped : path_map.poses) {
 		pose_stamped.pose.position.z = 0.0;
 
             tf2::Quaternion original_q, rotated_q;
