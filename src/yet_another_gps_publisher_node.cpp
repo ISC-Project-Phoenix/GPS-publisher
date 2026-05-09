@@ -334,7 +334,7 @@ void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometr
         tf2::Quaternion pitch_rotation;	// M_PI
         pitch_rotation.setRPY(0.0, 0.0, 0.0);  // roll=0, pitch=+90°, yaw=0
 
-        for (auto& pose_stamped : path_odom.poses) {
+        for (auto& pose_stamped : path_body.poses) {
 		pose_stamped.pose.position.z = 0.0;
 
             tf2::Quaternion original_q, rotated_q;
