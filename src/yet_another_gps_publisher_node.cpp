@@ -330,11 +330,13 @@ void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometr
     }
 
     if (cumulative_length >= min_spline_length) {
-        // Apply rotoations (but we dont have too at all)
-        tf2::Quaternion pitch_rotation;
-        pitch_rotation.setRPY(0.0, M_PI / 2.0, 0.0);  // roll=0, pitch=+0°, yaw=0
+        // Apply +90 deg pitch (rotate around Y axis)
+        tf2::Quaternion pitch_rotation;	// M_PI
+        pitch_rotation.setRPY(0.0, 0.0, 0.0);  // roll=0, pitch=+90°, yaw=0
 
-        for (auto& pose_stamped : path_body.poses) {
+        for (auto& pose_stamped : path_odom.poses) {
+		pose_stamped.pose.position.z = 0.0;
+
             tf2::Quaternion original_q, rotated_q;
             tf2::fromMsg(pose_stamped.pose.orientation, original_q);
             rotated_q = pitch_rotation * original_q;  // rotate the heading by +90° pitch
