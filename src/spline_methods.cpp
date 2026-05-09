@@ -19,8 +19,12 @@ std::map<std::string, SplineGenerator>& SplineFactory::registry() {
     return reg;
 }
 
-void SplineFactory::registerGenerator(const std::string& name, SplineGenerator gen) { registry()[name] = gen; }
+/* registerGenerator: inputs name (classification of spline geometry), and function of spline geometry stores them in regsitry {key: '', value: ''}*/
+void SplineFactory::registerGenerator(const std::string& name, SplineGenerator gen) { 
+    registry()[name] = gen; 
+}
 
+/* getGenerator: inputs the name (classification of spline geometry), outputs the actual function maping in regsitry */
 SplineGenerator SplineFactory::getGenerator(const std::string& name) {
     auto it = registry().find(name);
     if (it == registry().end()) {
@@ -29,8 +33,8 @@ SplineGenerator SplineFactory::getGenerator(const std::string& name) {
     return it->second;
 }
 
-std::vector<geometry_msgs::msg::Pose> SplineFactory::generate(const std::string& name, const gps_waypoint& start,
-                                                              const gps_waypoint& end) {
+/* generate: inputs the classification, waypoint W_0 and waypoint W_n, and ouptus the dynamic array of points*/
+std::vector<geometry_msgs::msg::Pose> SplineFactory::generate(const std::string& name, const gps_waypoint& start, const gps_waypoint& end) {
     return getGenerator(name)(start, end);
 }
 
@@ -38,7 +42,14 @@ std::vector<geometry_msgs::msg::Pose> SplineFactory::generate(const std::string&
 // Concrete generators
 // ------------------------------------------------------------------
 
+
 static std::vector<geometry_msgs::msg::Pose> linearGenerator(const gps_waypoint& start, const gps_waypoint& end) {
+    /*
+    a <- start position
+    b <- end position 
+    t <- [0, 1]
+    P(t) = a + t(b - a)
+    */
     const auto& a = start.mapPose().position;
     const auto& b = end.mapPose().position;
 
@@ -59,6 +70,11 @@ static std::vector<geometry_msgs::msg::Pose> linearGenerator(const gps_waypoint&
 }
 
 static std::vector<geometry_msgs::msg::Pose> circleGenerator(const gps_waypoint& start, const gps_waypoint& end) {
+    /*
+    Chord = sqrt[(x_b - x_a)^2 + (y_b - y_a)^2]
+    theta <- 2 * arcsin(chord/2R)
+
+    */
     double R = end.radius();
     if (R <= 0.0) {
         return linearGenerator(start, end);
