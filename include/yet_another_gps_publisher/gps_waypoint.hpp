@@ -1,7 +1,7 @@
 #pragma once
 
-#include <geometry_msgs/msg/pose.hpp>
-#include <geometry_msgs/msg/pose_stamped.hpp>
+#include <geometry_msgs/msg/pose.hpp>         /* for geometry_msg::msg::Pose for position P(x,y,z) and orientation(quanternion) Q(x,y,z,w) */
+#include <geometry_msgs/msg/pose_stamped.hpp> /* for geometry_msg::msg::PoseStamped for position P(x,y,z) and orientation Q(x,y,z,w), with the header for timestamp and frame_id*/ 
 #include <string>
 
 class gps_waypoint {
@@ -30,9 +30,10 @@ public:
 private:
     double longitude_ = 0.0;
     double latitude_ = 0.0;
+    double radius_ = 0.0; /* determined later on */
     std::string method_ = "linear";
-    double radius_ = 0.0;
-    geometry_msgs::msg::PoseStamped utm_pose_;
-    geometry_msgs::msg::Pose odom_pose;
-    geometry_msgs::msg::Pose map_pose_;
+    geometry_msgs::msg::PoseStamped utm_pose_; /* Global, stores the absolute global position UTM*/
+    geometry_msgs::msg::Pose map_pose_;        /* Global, for path generation */
+    geometry_msgs::msg::Pose odom_pose;        /* Local, for local robot space position */
+
 };
