@@ -203,7 +203,7 @@ void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometr
         geometry_msgs::msg::PoseStamped ps_in;
         ps_in.header = msg->header;  // frame_id from /odometry/gps (likely "map origin")
         ps_in.pose = msg->pose.pose;
-        auto ps_out = tf_buffer_.transform(robot_origin_frame_id, map_frame_id, std::chrono::milliseconds(100));
+        auto ps_out = tf_buffer_.transform(ps_in, map_frame_id, std::chrono::milliseconds(100));
         robot_pose_map = ps_out.pose;
     } catch (tf2::TransformException& ex) {
         RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000, "TF /odometry/gps -> map failed: %s",
@@ -309,35 +309,34 @@ void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometr
         if (processed >= waypoints.size()) break;
     }
 
-    // Transform to robot's body frame (e.g., base_link) so that the robot sits at (0,0)
-    // Using the odometry message's child_frame_id to get the correct body frame name.
-    std::string body_frame = msg->child_frame_id;
-    nav_msgs::msg::Path path_body;
+    // Transform to body frame (odom_frame_id now holds e.g. "base_link")
+    // so that the robot sits at (0,0) and the path extends ahead of it.
+    nav_msgs::msg::Path path_odom;
     try {
-        auto transform = tf_buffer_.lookupTransform(body_frame, map_frame_id, tf2::TimePointZero);
+        auto transform = tf_buffer_.lookupTransform(odom_frame_id, map_frame_id, tf2::TimePointZero);
         for (const auto& ps : path_map.poses) {
             geometry_msgs::msg::PoseStamped ps_out;
             tf2::doTransform(ps, ps_out, transform);
-            ps_out.header.frame_id = body_frame;
+            ps_out.header.frame_id = odom_frame_id;
             ps_out.header.stamp = path_map.header.stamp;
-            path_body.poses.push_back(ps_out);
+            path_odom.poses.push_back(ps_out);
         }
-        path_body.header.frame_id = body_frame;
-        path_body.header.stamp = path_map.header.stamp;
+        path_odom.header.frame_id = odom_frame_id;
+        path_odom.header.stamp = path_map.header.stamp;
     } catch (tf2::TransformException& ex) {
-        // TF lookup from map to body frame failed
-        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 0, "TF MAP->%s failed: %s", body_frame.c_str(),
+        // TF lookup from map to odom_frame_id (body frame) failed
+        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 0, "TF MAP->%s failed: %s", odom_frame_id.c_str(),
                              ex.what());
         return;
     }
 
     if (cumulative_length >= min_spline_length) {
         // Apply +90 deg pitch (rotate around Y axis)
-        tf2::Quaternion pitch_rotation;	// M_PI
+        tf2::Quaternion pitch_rotation;        // M_PI
         pitch_rotation.setRPY(0.0, 0.0, 0.0);  // roll=0, pitch=+90°, yaw=0
 
-        for (auto& pose_stamped : path_map.poses) {
-		pose_stamped.pose.position.z = 0.0;
+        for (auto& pose_stamped : path_odom.poses) {
+            pose_stamped.pose.position.z = 0.0;
 
             tf2::Quaternion original_q, rotated_q;
             tf2::fromMsg(pose_stamped.pose.orientation, original_q);
