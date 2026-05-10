@@ -23,7 +23,7 @@ using SplineGenerator = std::function<std::vector<geometry_msgs::msg::Pose>(cons
 class SplineFactory {
 public:
     static void registerGenerator(const std::string& name, SplineGenerator gen); /* save function into memory */
-    static SplineGenerator getGenerator(const std::string& name); /* looks up based on key */
+    static SplineGenerator getGenerator(const std::string& name); /* looks up function based on key */
     static std::vector<geometry_msgs::msg::Pose> generate(const std::string& name, const gps_waypoint& start,
                                                           const gps_waypoint& end);  /* looks up the key and executes in one go */
 

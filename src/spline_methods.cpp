@@ -73,7 +73,6 @@ static std::vector<geometry_msgs::msg::Pose> circleGenerator(const gps_waypoint&
     /*
     Chord = sqrt[(x_b - x_a)^2 + (y_b - y_a)^2]
     theta <- 2 * arcsin(chord/2R)
-
     */
     double R = end.radius();
     if (R <= 0.0) {

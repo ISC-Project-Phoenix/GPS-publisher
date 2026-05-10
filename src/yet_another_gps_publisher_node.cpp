@@ -13,9 +13,12 @@
 #include "yet_another_gps_publisher/spline_factory.hpp"
 
 // Constructor
+/* yet_another_gps_publisher: */
 yet_another_gps_publisher::yet_another_gps_publisher(const rclcpp::NodeOptions& options)
     : Node("yet_another_gps_publisher", options), tf_buffer_(this->get_clock()), tf_listener_(tf_buffer_) {
-    // Declare parameters
+    /**********************************************************/
+    /*                       PARAMETERS                       */   
+    /**********************************************************/
 
     // Threshold for GPS "Confidence". 0.1 means we only trust the GPS if it's within ~30cm precision.
     // TODO figure out what a good threshold is based on the actual GPS variance we see in testing, and maybe even make it adaptive based on current conditions.
@@ -47,11 +50,14 @@ yet_another_gps_publisher::yet_another_gps_publisher(const rclcpp::NodeOptions& 
         "waypoint_file_path",
         "/home/isc/Documents/dev/phnx_ws_2026/src/gps_publisher/src/gps_waypoints_parking_lot_mk1.txt");
 
-    // Publisher
+    /**********************************************************/
+    /*                       PUBLISHER                        */   
+    /**********************************************************/
     path_pub = this->create_publisher<nav_msgs::msg::Path>("/path", 5);
 
-    // Subscribers
-
+    /**********************************************************/
+    /*                       SUBSCRIBERS                      */   
+    /**********************************************************/
     // Subscribe to Raw GPS to check the fix status (VectorNav)
     raw_gps_sub = this->create_subscription<sensor_msgs::msg::NavSatFix>(
         "/phoenix/navsat", 10, std::bind(&yet_another_gps_publisher::raw_gps_callback, this, std::placeholders::_1));
@@ -76,6 +82,7 @@ yet_another_gps_publisher::yet_another_gps_publisher(const rclcpp::NodeOptions& 
 }
 
 // The Confidence Check + RAW GPS callback
+/* raw_gps_callback: takes input of sensor message NavSatFix msg, evaluates signal quality against variance threshold, updates internal is_gps_valid state */
 void yet_another_gps_publisher::raw_gps_callback(const sensor_msgs::msg::NavSatFix::SharedPtr msg) {
     // check if we are even using this
     if (!do_gps_variance_check) {
@@ -111,20 +118,25 @@ void yet_another_gps_publisher::raw_gps_callback(const sensor_msgs::msg::NavSatF
 }
 
 // Load waypoints from file into std::list
+/* load_waypoints: takes input of waypoint file path, loads points as gps_waypoint and stores it in waypoint list, returns wheather file and points are valid or not */
 bool yet_another_gps_publisher::load_waypoints(const std::string& file_path) {
+    /* load waypoint file */
     std::ifstream file(file_path);
     if (!file.is_open()) {
         RCLCPP_ERROR(this->get_logger(), "Could not open file: %s", file_path.c_str());
         return false;
     }
 
+    /* clear waypoint list and instansiate line */
     waypoints.clear();
     std::string line;
     int line_num = 0;
+    /* while file is not EOF */
     while (std::getline(file, line)) {
         line_num++;
-        if (line.empty() || line[0] == '#') continue;
+        if (line.empty() || line[0] == '#') continue; /* ignore comments */
 
+        /* initalize fields*/
         std::istringstream iss(line);
         double lon, lat, radius = 0.0;
         std::string spline_type;
@@ -138,7 +150,7 @@ bool yet_another_gps_publisher::load_waypoints(const std::string& file_path) {
                 RCLCPP_WARN(this->get_logger(), "Circle method on line %d missing radius, using default 0", line_num);
             }
         }
-
+        /* create waypoint with long, lat, type and radius */
         gps_waypoint wp(lon, lat, spline_type, radius);
 
         // Transform waypoint to odom frame
@@ -146,59 +158,77 @@ bool yet_another_gps_publisher::load_waypoints(const std::string& file_path) {
             RCLCPP_WARN(this->get_logger(), "Skipping waypoint line %d due to transform failure", line_num);
             continue;
         }
-
+        /* push back waypoint into doubly linked list */
         waypoints.push_back(wp);
         RCLCPP_INFO(this->get_logger(), "Loaded waypoint %zu: spline_type=%s at (%.6f, %.6f)", waypoints.size(),
                     spline_type.c_str(), lon, lat);
     }
+    /* close file properly */
     file.close();
+    /* if there are less than lines read return false else return true*/
     if (line_num < 5) return false;
     return true;
 }
 
 // Transform waypoint from lat/lon to UTM and store
+/* transformWaypoint: takes coordinates of waypoint, transforms its projection to UTM*/
 bool yet_another_gps_publisher::transformWaypoint(gps_waypoint& wp) {
+    /* Populates a standard ROS 2 geographic message with the waypoint's coordinate data for projection*/
     geographic_msgs::msg::GeoPoint geo;
     geo.latitude = wp.latitude();
     geo.longitude = wp.longitude();
     geo.altitude = 0.0;
 
+    /* Project the spherical coordinate into flat UTM grid coordinate */
     geodesy::UTMPoint utm;
     geodesy::fromMsg(geo, utm);
 
+    /* Package the UTM data into a PossedStamped with the correct UTM frame ID */
     geometry_msgs::msg::PoseStamped utm_pose;
     utm_pose.header.frame_id = utm_frame_id;
     // Do NOT set the stamp here, we want the TF buffer to grab the newest available transform later
     utm_pose.pose.position.x = utm.easting;
     utm_pose.pose.position.y = utm.northing;
     utm_pose.pose.position.z = 0.0;
-    utm_pose.pose.orientation.w = 1.0;
+    utm_pose.pose.orientation.w = 1.0; /* potential downstream to fix if waypoint needs to be approached at a specific angle */
 
     // Save the UTM pose to the waypoint, but don't do the TF lookup yet
+    /* Update the waypoint with new UTM pose for future coordinate transformations */
     wp.setUtmPose(utm_pose);
     return true;
 }
 
 // Advance iterator
+/* advance_to_next_waypoint: iterates to the next waypoint in the list waypoints */
 void yet_another_gps_publisher::advance_to_next_waypoint() {
+    /* if the current waypoint is not the end */
     if (current_waypoint_it_ != waypoints.end()) {
+        /* ittereate to the next waypoint */
         ++current_waypoint_it_;
         // wrap around for looping since the track is a circuit
+        /* if waypoint iterator is the end waypoint */
         if (current_waypoint_it_ == waypoints.end()) {
+            /* the current waypoint is now the beginning circular */
             current_waypoint_it_ = waypoints.begin();
         }
     }
 }
 
 // generate spline path from robot until we exceed max spline
+/* global_ekf_callback: takes input of an Odometry message, transforms robot and 
+   waypoint data into a common map frame, advances mission progress if waypoints 
+   are reached, and generates a multi-segment spline path until a minimum length 
+   requirement is met. */
 void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
     // Guard conditions
+    /* if the gps point is not valid or the waypoint list is empty */
     if (!is_gps_valid || waypoints.empty()) {
         return;
     }
 
-    geometry_msgs::msg::Pose
-        robot_pose_map;  // its using the pose of the center of the map ot the robots pose in the map.
+    geometry_msgs::msg::Pose robot_pose_map;  // its using the pose of the center of the map not the robots pose in the map.
+
+    /* Attempt to transform the robot's current odometry pose into the map frame */
     try {
         geometry_msgs::msg::PoseStamped ps_in;
         ps_in.header = msg->header;  // frame_id from /odometry/gps (likely "map origin")
@@ -208,6 +238,12 @@ void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometr
     } catch (tf2::TransformException& ex) {
         RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000, "TF /odometry/gps -> map failed: %s",
                              ex.what());
+        /*
+        What can cause this to fail?
+        1. Broken or missing TF Tree
+        2. Timing Issue (ex. one node publishes odom -> base_link then another another utm -> map, nothing is doing map->odom will fail)
+        3. Timing Issue (msg->header.stamp transform at the exact moment GPS was recorded if tf_buffer_ hasn't recieved the latest transform tf2 cannot see into future)
+        */
         return;
     }
 
@@ -216,10 +252,13 @@ void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometr
     size_t checked = 0;
     const size_t N = waypoints.size();
 
+    /* Determine if the robot has entered the arrival_threshold radius of the current target*/
     while (checked < N) {
         // Transform the current waypoint to map frame on demand
         gps_waypoint& wp = *current_waypoint_it_;
         geometry_msgs::msg::Pose wp_map_pose;
+
+        /* Transform the stored UTM waypoint into the local map frame for distance comparison*/
         try {
             wp.utmPose().header.stamp = rclcpp::Time(0);
             geometry_msgs::msg::PoseStamped map_wp =
@@ -230,36 +269,48 @@ void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometr
             return;
         }
 
+        /* Calculate Euclidean distance; if within threshold, advance mission progress */
         double dist = std::hypot(robot_postion.position.x - wp_map_pose.position.x,
                                  robot_postion.position.y - wp_map_pose.position.y);
-        if (dist >= arrival_threshold) break;  // not arrived yet do not skipping
+        if (dist >= arrival_threshold) break;  // not arrived yet do not skip
 
         RCLCPP_INFO(this->get_logger(), "Passed waypoint (distance %.2f < %.2f)", dist, arrival_threshold);
         advance_to_next_waypoint();  // ++it, wraps to begin() if at end
         checked++;
     }
 
-    if (checked >= N) {  // all waypoints reached → full lap done
+    /* All waypoints reached implies full lap done*/
+    if (checked >= N) {
         RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 5000, "All waypoints reached (full lap)");
         return;
     }
 
+    /* path_map: Initializes a local path message in the map coordinate frame 
+       to hold the collection of generated spline segments. */
     nav_msgs::msg::Path path_map;
     path_map.header.frame_id = map_frame_id;
     path_map.header.stamp = msg->header.stamp;
 
+    /* cumulative_length: Tracks the total distance of the generated path to 
+       ensure it meets the minimum requirements for the steering controller. */
     double cumulative_length = 0.0;
 
     // TODO decided if we want to start at the back of the robot pose
+    /* start_wp: Creates a temporary 'virtual' waypoint at the robot's current 
+       coordinates to act as the anchor for the first spline segment. */
     gps_waypoint start_wp(0.0, 0.0, "line");
     start_wp.setMapPose(robot_postion);
     gps_waypoint prev_wp = start_wp;  // this will be updated as we drive forward
 
     // the look ahead scanner.
+    /* Segment_it: a look-ahead pointer starting at the current target waypoint 
+       used to scan forward through the list during spline chaining. */
     auto segment_it = current_waypoint_it_;
     size_t processed = 0;
     const size_t n = waypoints.size();
 
+    /* Generate a continuous path starting from the robot's current position and 
+       chaining together spline segments until the path meets min_spline_length. */
     while (cumulative_length < min_spline_length) {
         gps_waypoint& wp = *segment_it;
         processed++;
@@ -312,6 +363,9 @@ void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometr
     // Transform to body frame (odom_frame_id now holds e.g. "base_link")
     // so that the robot sits at (0,0) and the path extends ahead of it.
     nav_msgs::msg::Path path_odom;
+
+    /* Transform the entire path from map coordinates to the robot's body frame 
+       (odom_frame_id) so the robot base link acts as the origin (0,0). */
     try {
         auto transform = tf_buffer_.lookupTransform(odom_frame_id, map_frame_id, tf2::TimePointZero);
         for (const auto& ps : path_map.poses) {
@@ -354,6 +408,7 @@ void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometr
 }
 
 // gps_waypoint constructor implementation
+/* gps_waypoint: */
 gps_waypoint::gps_waypoint(double lon, double lat, const std::string& method, double radius)
     : longitude_(lon), latitude_(lat), method_(method), radius_(radius) {}
 
