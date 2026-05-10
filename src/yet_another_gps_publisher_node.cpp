@@ -12,6 +12,10 @@
 
 #include "yet_another_gps_publisher/spline_factory.hpp"
 
+#ifndef WAYPOINT_FILE
+    #define WAYPOINT_FILE "/home/isc/Documents/dev/phnx_ws_2026/src/gps_publisher/src/gps_waypoints_parking_lot_mk1.txt"
+#endif
+
 // Constructor
 /* yet_another_gps_publisher: */
 yet_another_gps_publisher::yet_another_gps_publisher(const rclcpp::NodeOptions& options)
@@ -48,7 +52,7 @@ yet_another_gps_publisher::yet_another_gps_publisher(const rclcpp::NodeOptions& 
     // TODO indentify where this file should be stored?
     waypoint_file_path = this->declare_parameter<std::string>(
         "waypoint_file_path",
-        "/home/isc/Documents/dev/phnx_ws_2026/src/gps_publisher/src/gps_waypoints_parking_lot_mk1.txt");
+        WAYPOINT_FILE);
 
     /**********************************************************/
     /*                       PUBLISHER                        */   
