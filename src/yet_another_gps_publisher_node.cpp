@@ -49,7 +49,7 @@ yet_another_gps_publisher::yet_another_gps_publisher(const rclcpp::NodeOptions& 
     // This is the robot's body frame (e.g., base_link) – the path is transformed here so the kart is at (0,0)
     // robot_origin_frame_id = this->declare_parameter<std::string>("robot_origin_frame_id", "base_link");
     // TODO actually set this parameter from launch file or command line, not hardcoded.
-    // TODO indentify where this file should be stored?
+    // TODO indentify where this file should be stored? (Completed by Elijah May 9 check git logs)
     waypoint_file_path = this->declare_parameter<std::string>(
         "waypoint_file_path",
         WAYPOINT_FILE);
