@@ -1,6 +1,6 @@
 #pragma once
 
-#include <list>  /* for doubly linked lists*/
+#include <list> /* for doubly linked lists*/
 #include <string>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
@@ -38,10 +38,10 @@ private:
 
     // Subscribers
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub; /* local ekf */
-    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr waypoint_file_sub; 
+    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr waypoint_file_sub;
 
     // GPS subscribers
-    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr gps_odom_sub; /* global ekf */
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr gps_odom_sub;    /* global ekf */
     rclcpp::Subscription<sensor_msgs::msg::NavSatFix>::SharedPtr raw_gps_sub; /* raw gps points*/
 
     // Publisher
@@ -51,11 +51,11 @@ private:
     rclcpp::TimerBase::SharedPtr timer; /* periodic callback (check if robot reached waypoint)*/
 
     // TF
-    tf2_ros::Buffer tf_buffer_;               /* local cache that stores used as lookup for transforms */
-    tf2_ros::TransformListener tf_listener_;  /* listens to broadcasts (utm, map, baselink)*/
+    tf2_ros::Buffer tf_buffer_;              /* local cache that stores used as lookup for transforms */
+    tf2_ros::TransformListener tf_listener_; /* listens to broadcasts (utm, map, baselink)*/
 
     // Current robot pose (from odometry)
-    geometry_msgs::msg::Pose current_pose{}; 
+    geometry_msgs::msg::Pose current_pose{};
 
     // Doubly linked list of waypoints
     std::list<gps_waypoint> waypoints;

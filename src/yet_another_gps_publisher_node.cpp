@@ -13,7 +13,7 @@
 #include "yet_another_gps_publisher/spline_factory.hpp"
 
 #ifndef WAYPOINT_FILE
-    #define WAYPOINT_FILE "/home/isc/Documents/dev/phnx_ws_2026/src/gps_publisher/src/gps_waypoints_parking_lot_mk1.txt"
+#define WAYPOINT_FILE "/home/isc/Documents/dev/phnx_ws_2026/src/gps_publisher/src/gps_waypoints_parking_lot_mk1.txt"
 #endif
 
 // Constructor
@@ -21,7 +21,7 @@
 yet_another_gps_publisher::yet_another_gps_publisher(const rclcpp::NodeOptions& options)
     : Node("yet_another_gps_publisher", options), tf_buffer_(this->get_clock()), tf_listener_(tf_buffer_) {
     /**********************************************************/
-    /*                       PARAMETERS                       */   
+    /*                       PARAMETERS                       */
     /**********************************************************/
 
     // Threshold for GPS "Confidence". 0.1 means we only trust the GPS if it's within ~30cm precision.
@@ -50,17 +50,15 @@ yet_another_gps_publisher::yet_another_gps_publisher(const rclcpp::NodeOptions& 
     // robot_origin_frame_id = this->declare_parameter<std::string>("robot_origin_frame_id", "base_link");
     // TODO actually set this parameter from launch file or command line, not hardcoded.
     // TODO indentify where this file should be stored? (Completed by Elijah May 9 check git logs)
-    waypoint_file_path = this->declare_parameter<std::string>(
-        "waypoint_file_path",
-        WAYPOINT_FILE);
+    waypoint_file_path = this->declare_parameter<std::string>("waypoint_file_path", WAYPOINT_FILE);
 
     /**********************************************************/
-    /*                       PUBLISHER                        */   
+    /*                       PUBLISHER                        */
     /**********************************************************/
     path_pub = this->create_publisher<nav_msgs::msg::Path>("/path", 5);
 
     /**********************************************************/
-    /*                       SUBSCRIBERS                      */   
+    /*                       SUBSCRIBERS                      */
     /**********************************************************/
     // Subscribe to Raw GPS to check the fix status (VectorNav)
     raw_gps_sub = this->create_subscription<sensor_msgs::msg::NavSatFix>(
@@ -194,7 +192,8 @@ bool yet_another_gps_publisher::transformWaypoint(gps_waypoint& wp) {
     utm_pose.pose.position.x = utm.easting;
     utm_pose.pose.position.y = utm.northing;
     utm_pose.pose.position.z = 0.0;
-    utm_pose.pose.orientation.w = 1.0; /* potential downstream to fix if waypoint needs to be approached at a specific angle */
+    utm_pose.pose.orientation.w =
+        1.0; /* potential downstream to fix if waypoint needs to be approached at a specific angle */
 
     // Save the UTM pose to the waypoint, but don't do the TF lookup yet
     /* Update the waypoint with new UTM pose for future coordinate transformations */
@@ -230,7 +229,8 @@ void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometr
         return;
     }
 
-    geometry_msgs::msg::Pose robot_pose_map;  // its using the pose of the center of the map not the robots pose in the map.
+    geometry_msgs::msg::Pose
+        robot_pose_map;  // its using the pose of the center of the map not the robots pose in the map.
 
     /* Attempt to transform the robot's current odometry pose into the map frame */
     try {

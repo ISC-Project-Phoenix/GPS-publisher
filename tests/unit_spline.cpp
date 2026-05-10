@@ -1,10 +1,11 @@
 #include <gtest/gtest.h>
-#include <rclcpp/rclcpp.hpp>
+
+#include <cmath>
 #include <fstream>
+#include <rclcpp/rclcpp.hpp>
 #include <sstream>
 #include <string>
 #include <vector>
-#include <cmath>
 
 #include "yet_another_gps_publisher/gps_waypoint.hpp"
 #include "yet_another_gps_publisher/spline_factory.hpp"
@@ -56,7 +57,7 @@ TEST(yet_another_gps_publisher, gps_file_loads_correctly) {
 TEST(yet_another_gps_publisher, circle_generator_desmos_output) {
     // Two points ~7m apart, 5m radius left turn
     gps_waypoint start = make_waypoint(0.0, 0.0, "linear");
-    gps_waypoint end   = make_waypoint(5.0, 5.0, "circle", 5.0);
+    gps_waypoint end = make_waypoint(5.0, 5.0, "circle", 5.0);
 
     auto points = gps_waypoint_spline::SplineFactory::generate("circle", start, end);
 
@@ -86,7 +87,7 @@ TEST(yet_another_gps_publisher, circle_generator_desmos_output) {
 
 TEST(yet_another_gps_publisher, circle_generator_falls_back_on_bad_radius) {
     gps_waypoint start = make_waypoint(0.0, 0.0, "linear");
-    gps_waypoint end   = make_waypoint(10.0, 0.0, "circle", 0.0); // zero radius
+    gps_waypoint end = make_waypoint(10.0, 0.0, "circle", 0.0);  // zero radius
 
     auto points = gps_waypoint_spline::SplineFactory::generate("circle", start, end);
     ASSERT_GT(points.size(), 0u);

@@ -1,10 +1,10 @@
+#include <tf2/LinearMath/Quaternion.h>
+
 #include <cmath>
 #include <stdexcept>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 #include "yet_another_gps_publisher/spline_factory.hpp"
-
-#include <tf2/LinearMath/Quaternion.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 // ------------------------------------------------------------------------------------------
 //
@@ -23,9 +23,7 @@ std::map<std::string, SplineGenerator>& SplineFactory::registry() {
 }
 
 /* registerGenerator: inputs name (classification of spline geometry), and function of spline geometry stores them in regsitry {key: '', value: ''}*/
-void SplineFactory::registerGenerator(const std::string& name, SplineGenerator gen) { 
-    registry()[name] = gen; 
-}
+void SplineFactory::registerGenerator(const std::string& name, SplineGenerator gen) { registry()[name] = gen; }
 
 /* getGenerator: inputs the name (classification of spline geometry), outputs the actual function maping in regsitry */
 SplineGenerator SplineFactory::getGenerator(const std::string& name) {
@@ -37,14 +35,14 @@ SplineGenerator SplineFactory::getGenerator(const std::string& name) {
 }
 
 /* generate: inputs the classification, waypoint W_0 and waypoint W_n, and ouptus the dynamic array of points*/
-std::vector<geometry_msgs::msg::Pose> SplineFactory::generate(const std::string& name, const gps_waypoint& start, const gps_waypoint& end) {
+std::vector<geometry_msgs::msg::Pose> SplineFactory::generate(const std::string& name, const gps_waypoint& start,
+                                                              const gps_waypoint& end) {
     return getGenerator(name)(start, end);
 }
 
 // ------------------------------------------------------------------
 // Concrete generators
 // ------------------------------------------------------------------
-
 
 static std::vector<geometry_msgs::msg::Pose> linearGenerator(const gps_waypoint& start, const gps_waypoint& end) {
     /*
@@ -79,8 +77,8 @@ static std::vector<geometry_msgs::msg::Pose> circleGenerator(const gps_waypoint&
         return linearGenerator(start, end);
     }
 
-    const auto &a = start.mapPose().position;
-    const auto &b = end.mapPose().position;
+    const auto& a = start.mapPose().position;
+    const auto& b = end.mapPose().position;
 
     double dx = b.x - a.x;
     double dy = b.y - a.y;
@@ -102,15 +100,11 @@ static std::vector<geometry_msgs::msg::Pose> circleGenerator(const gps_waypoint&
 
     double diff = angle_end - angle_start;
     if (side > 0) {
-        while (diff <= 0.0)
-            diff += 2.0 * M_PI;
-        while (diff > 2.0 * M_PI)  
-            diff -= 2.0 * M_PI;
+        while (diff <= 0.0) diff += 2.0 * M_PI;
+        while (diff > 2.0 * M_PI) diff -= 2.0 * M_PI;
     } else {
-        while (diff >= 0.0)
-            diff -= 2.0 * M_PI;
-        while (diff < -2.0 * M_PI) 
-            diff += 2.0 * M_PI;
+        while (diff >= 0.0) diff -= 2.0 * M_PI;
+        while (diff < -2.0 * M_PI) diff += 2.0 * M_PI;
     }
 
     double arc_length = std::abs(R_val * diff);
