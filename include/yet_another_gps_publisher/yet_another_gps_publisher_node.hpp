@@ -24,6 +24,7 @@ private:
     std::string utm_frame_id;
     std::string odom_frame_id;
     std::string map_frame_id;
+    std::string robot_body_frame_id;
     // parameters for waypoint file loading
     std::string waypoint_file_path;
     std::string waypoint_file_topic;

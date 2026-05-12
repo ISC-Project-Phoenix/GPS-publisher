@@ -46,6 +46,8 @@ yet_another_gps_publisher::yet_another_gps_publisher(const rclcpp::NodeOptions& 
     odom_frame_id = this->declare_parameter<std::string>("odom_frame_id", "odom");
     // this is the MAP frame that we will store the waypoints in over time.
     map_frame_id = this->declare_parameter<std::string>("map_frame_id", "map");
+    // robot frame to start path in
+    robot_body_frame_id = this->declare_parameter<std::string>("robot_body_frame_id", "base_link");
     // This is the robot's body frame (e.g., base_link) – the path is transformed here so the kart is at (0,0)
     // robot_origin_frame_id = this->declare_parameter<std::string>("robot_origin_frame_id", "base_link");
     // TODO actually set this parameter from launch file or command line, not hardcoded.
@@ -251,7 +253,7 @@ void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometr
         return;
     }
 
-    geometry_msgs::msg::Pose robot_postion = robot_pose_map;  //msg->pose.pose;
+    geometry_msgs::msg::Pose robot_postion = robot_pose_map;
 
     size_t checked = 0;
     const size_t N = waypoints.size();
@@ -279,7 +281,7 @@ void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometr
         if (dist >= arrival_threshold) break;  // not arrived yet do not skip
 
         RCLCPP_INFO(this->get_logger(), "Passed waypoint (distance %.2f < %.2f)", dist, arrival_threshold);
-        advance_to_next_waypoint();  // ++it, wraps to begin() if at end
+        advance_to_next_waypoint();
         checked++;
     }
 
@@ -354,36 +356,43 @@ void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometr
                                                      segment[j].position.y - segment[j - 1].position.y));
         }
 
-        prev_wp = wp;  // shift anchor
-        ++segment_it;  // advance the scanning pointer
-        processed++;
+        prev_wp = wp;   // shift anchor
+        ++segment_it;   // advance the scanning pointer
+        processed++;    // Only increment once per waypoint processed!
 
-        // to stop if we’ve walked the whole list without hitting the length.
+        // Wrap the segment iterator so it can look from the last point back to the first
+        if (segment_it == waypoints.end()) {
+            segment_it = waypoints.begin();
+        }
+
+        / to stop if we’ve walked the whole list without hitting the length.
         // TODO decide is we still wnat to publish?
         // should probably warn though. I dont see this ever being a problem though.
         if (processed >= waypoints.size()) break;
     }
 
-    // Transform to body frame (odom_frame_id now holds e.g. "base_link")
-    // so that the robot sits at (0,0) and the path extends ahead of it.
-    nav_msgs::msg::Path path_odom;
+    // Transform path from map frame to robot body frame so the robot sits at (0,0)
+    // and the path extends ahead of it in RViz.
+    nav_msgs::msg::Path path_body;
+    path_body.header.stamp = path_map.header.stamp;
+    path_body.header.frame_id = robot_body_frame_id;
 
     /* Transform the entire path from map coordinates to the robot's body frame 
        (odom_frame_id) so the robot base link acts as the origin (0,0). */
     try {
-        auto transform = tf_buffer_.lookupTransform(odom_frame_id, map_frame_id, tf2::TimePointZero);
+    try {
+        // Look up the transform from map to the robot's current body frame at *this* time
+        auto transform = tf_buffer_.lookupTransform(robot_body_frame_id, map_frame_id, msg->header.stamp);
         for (const auto& ps : path_map.poses) {
             geometry_msgs::msg::PoseStamped ps_out;
             tf2::doTransform(ps, ps_out, transform);
-            ps_out.header.frame_id = odom_frame_id;
+            ps_out.header.frame_id = robot_body_frame_id;
             ps_out.header.stamp = path_map.header.stamp;
-            path_odom.poses.push_back(ps_out);
+            path_body.poses.push_back(ps_out);
         }
-        path_odom.header.frame_id = odom_frame_id;
-        path_odom.header.stamp = path_map.header.stamp;
     } catch (tf2::TransformException& ex) {
         // TF lookup from map to odom_frame_id (body frame) failed
-        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 0, "TF MAP->%s failed: %s", odom_frame_id.c_str(),
+        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 0, "TF map->%s failed: %s", robot_body_frame_id.c_str(),
                              ex.what());
         return;
     }
@@ -393,18 +402,17 @@ void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometr
         tf2::Quaternion pitch_rotation;        // M_PI
         pitch_rotation.setRPY(0.0, 0.0, 0.0);  // roll=0, pitch=+90°, yaw=0
 
-        for (auto& pose_stamped : path_odom.poses) {
+        for (auto& pose_stamped : path_body.poses) {
             pose_stamped.pose.position.z = 0.0;
 
             tf2::Quaternion original_q, rotated_q;
             tf2::fromMsg(pose_stamped.pose.orientation, original_q);
-            rotated_q = pitch_rotation * original_q;  // rotate the heading by +90° pitch
+            rotated_q = pitch_rotation * original_q;
             pose_stamped.pose.orientation = tf2::toMsg(rotated_q);
         }
 
-        // Now publish the rotated path
-        path_pub->publish(path_odom);
-
+        // Publish the rotated path
+        path_pub->publish(path_body);
     } else {
         RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 0, "GPS path too short (%.2f m)",
                              (double)cumulative_length);
