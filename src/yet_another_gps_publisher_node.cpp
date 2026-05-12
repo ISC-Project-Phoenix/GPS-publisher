@@ -365,10 +365,10 @@ void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometr
             segment_it = waypoints.begin();
         }
 
-        / to stop if we’ve walked the whole list without hitting the length.
-            // TODO decide is we still wnat to publish?
-            // should probably warn though. I dont see this ever being a problem though.
-            if (processed >= waypoints.size()) break;
+        // to stop if we’ve walked the whole list without hitting the length.
+        // TODO decide is we still wnat to publish?
+        // should probably warn though. I dont see this ever being a problem though.
+        if (processed >= waypoints.size()) break;
     }
 
     // Transform path from map frame to robot body frame so the robot sits at (0,0)
@@ -380,51 +380,49 @@ void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometr
     /* Transform the entire path from map coordinates to the robot's body frame 
        (odom_frame_id) so the robot base link acts as the origin (0,0). */
     try {
-        try {
-            // Look up the transform from map to the robot's current body frame at *this* time
-            auto transform = tf_buffer_.lookupTransform(robot_body_frame_id, map_frame_id, msg->header.stamp);
-            for (const auto& ps : path_map.poses) {
-                geometry_msgs::msg::PoseStamped ps_out;
-                tf2::doTransform(ps, ps_out, transform);
-                ps_out.header.frame_id = robot_body_frame_id;
-                ps_out.header.stamp = path_map.header.stamp;
-                path_body.poses.push_back(ps_out);
-            }
-        } catch (tf2::TransformException& ex) {
-            // TF lookup from map to odom_frame_id (body frame) failed
-            RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 0, "TF map->%s failed: %s",
-                                 robot_body_frame_id.c_str(), ex.what());
-            return;
+        // Look up the transform from map to the robot's current body frame at *this* time
+        auto transform = tf_buffer_.lookupTransform(robot_body_frame_id, map_frame_id, msg->header.stamp);
+        for (const auto& ps : path_map.poses) {
+            geometry_msgs::msg::PoseStamped ps_out;
+            tf2::doTransform(ps, ps_out, transform);
+            ps_out.header.frame_id = robot_body_frame_id;
+            ps_out.header.stamp = path_map.header.stamp;
+            path_body.poses.push_back(ps_out);
         }
-
-        if (cumulative_length >= min_spline_length) {
-            // Apply +90 deg pitch (rotate around Y axis)
-            tf2::Quaternion pitch_rotation;        // M_PI
-            pitch_rotation.setRPY(0.0, 0.0, 0.0);  // roll=0, pitch=+90°, yaw=0
-
-            for (auto& pose_stamped : path_body.poses) {
-                pose_stamped.pose.position.z = 0.0;
-
-                tf2::Quaternion original_q, rotated_q;
-                tf2::fromMsg(pose_stamped.pose.orientation, original_q);
-                rotated_q = pitch_rotation * original_q;
-                pose_stamped.pose.orientation = tf2::toMsg(rotated_q);
-            }
-
-            // Publish the rotated path
-            path_pub->publish(path_body);
-        } else {
-            RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 0, "GPS path too short (%.2f m)",
-                                 (double)cumulative_length);
-        }
+    } catch (tf2::TransformException& ex) {
+        // TF lookup from map to odom_frame_id (body frame) failed
+        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 0, "TF map->%s failed: %s",
+                             robot_body_frame_id.c_str(), ex.what());
+        return;
     }
 
-    // gps_waypoint constructor implementation
-    /* gps_waypoint: */
-    gps_waypoint::gps_waypoint(double lon, double lat, const std::string& method, double radius)
-        : longitude_(lon), latitude_(lat), method_(method), radius_(radius) {}
+    if (cumulative_length >= min_spline_length) {
+        // Apply +90 deg pitch (rotate around Y axis)
+        tf2::Quaternion pitch_rotation;        // M_PI
+        pitch_rotation.setRPY(0.0, 0.0, 0.0);  // roll=0, pitch=+90°, yaw=0
+
+        for (auto& pose_stamped : path_body.poses) {
+            pose_stamped.pose.position.z = 0.0;
+
+            tf2::Quaternion original_q, rotated_q;
+            tf2::fromMsg(pose_stamped.pose.orientation, original_q);
+            rotated_q = pitch_rotation * original_q;
+            pose_stamped.pose.orientation = tf2::toMsg(rotated_q);
+        }
+
+        // Publish the rotated path
+        path_pub->publish(path_body);
+    } else {
+        RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 0, "GPS path too short (%.2f m)",
+                             (double)cumulative_length);
+    }
+}
+// gps_waypoint constructor implementation
+/* gps_waypoint: */
+gps_waypoint::gps_waypoint(double lon, double lat, const std::string& method, double radius)
+    : longitude_(lon), latitude_(lat), method_(method), radius_(radius) {}
 
 // Register node as a component
 // todo chat why are we evening using this here
 #include "rclcpp_components/register_node_macro.hpp"
-    RCLCPP_COMPONENTS_REGISTER_NODE(yet_another_gps_publisher)
+RCLCPP_COMPONENTS_REGISTER_NODE(yet_another_gps_publisher)
