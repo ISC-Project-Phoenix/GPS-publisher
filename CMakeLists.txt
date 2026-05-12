@@ -35,6 +35,11 @@ add_executable(yet_another_gps_publisher
 target_include_directories(yet_another_gps_publisher PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>)
+set(DATA_FOLDER_PATH "${CMAKE_CURRENT_SOURCE_DIR}/data")
+
+target_compile_definitions(yet_another_gps_publisher PRIVATE 
+    WAYPOINT_FILE="${DATA_FOLDER_PATH}/gps_waypoints_parking_lot_mk1.txt")
+
 target_compile_features(yet_another_gps_publisher PUBLIC c_std_99 cxx_std_17)
 
 set(dependencies
@@ -57,6 +62,9 @@ ament_target_dependencies(yet_another_gps_publisher ${dependencies})
 install(TARGETS yet_another_gps_publisher
         DESTINATION lib/${PROJECT_NAME})
 
+install(DIRECTORY data
+        DESTINATION share/${PROJECT_NAME})
+        
 if (BUILD_TESTING)
     find_package(ament_cmake_clang_format REQUIRED)
     ament_clang_format(CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/.clang-format)

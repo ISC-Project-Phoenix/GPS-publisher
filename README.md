@@ -39,3 +39,10 @@ yet_another_gps_publisher_NODE_NAME_node: Source files for the ROS2 node object 
 yet_another_gps_publisher_NODE_NAME.cpp: Source for the main function of the node, and only the main function
 
 tests/unit.cpp: Example file for unit tests. This is linked to the node and ros, so both can be used
+
+# Testing
+(Notes From Elijah)
+- to test unit_spline.cpp:
+ colcon build --packages-select yet_another_gps_publisher --cmake-args -DBUILD_TESTING=ON
+./build/yet_another_gps_publisher/unit_spline_test
+cat /tmp/circle_arc_output.csv > src/gps_publisher/data/spline_unit_test.csv
