@@ -146,12 +146,12 @@ bool yet_another_gps_publisher::load_waypoints(const std::string& file_path) {
         std::string spline_type;
 
         if (!(iss >> lon >> lat >> spline_type)) {
-            RCLCPP_WARN(this->get_logger(), "Skipping malformed line %d", line_num);
+            // RCLCPP_WARN(this->get_logger(), "Skipping malformed line %d", line_num);
             continue;
         }
         if (spline_type == "circle") {
             if (!(iss >> radius)) {
-                RCLCPP_WARN(this->get_logger(), "Circle method on line %d missing radius, using default 0", line_num);
+                // RCLCPP_WARN(this->get_logger(), "Circle method on line %d missing radius, using default 0", line_num);
             }
         }
         /* create waypoint with long, lat, type and radius */
@@ -164,8 +164,7 @@ bool yet_another_gps_publisher::load_waypoints(const std::string& file_path) {
         }
         /* push back waypoint into doubly linked list */
         waypoints.push_back(wp);
-        RCLCPP_INFO(this->get_logger(), "Loaded waypoint %zu: spline_type=%s at (%.6f, %.6f)", waypoints.size(),
-                    spline_type.c_str(), lon, lat);
+        //RCLCPP_INFO(this->get_logger(), "Loaded waypoint %zu: spline_type=%s at (%.6f, %.6f)", waypoints.size(), spline_type.c_str(), lon, lat);
     }
     /* close file properly */
     file.close();
@@ -364,11 +363,6 @@ void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometr
         if (segment_it == waypoints.end()) {
             segment_it = waypoints.begin();
         }
-
-        // to stop if we’ve walked the whole list without hitting the length.
-        // TODO decide is we still wnat to publish?
-        // should probably warn though. I dont see this ever being a problem though.
-        if (processed >= waypoints.size()) break;
     }
 
     // Transform path from map frame to robot body frame so the robot sits at (0,0)
@@ -381,7 +375,11 @@ void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometr
        (odom_frame_id) so the robot base link acts as the origin (0,0). */
     try {
         // Look up the transform from map to the robot's current body frame at *this* time
-        auto transform = tf_buffer_.lookupTransform(robot_body_frame_id, map_frame_id, msg->header.stamp);
+        // Look up the transform from map to the robot's current body frame using the
+        // latest available data (TimePointZero) and wait up to 100 ms.
+        auto transform = tf_buffer_.lookupTransform(robot_body_frame_id, map_frame_id,
+                                                    tf2::TimePointZero,               // use latest transform
+                                                    std::chrono::milliseconds(100));  // optional but safe timeout
         for (const auto& ps : path_map.poses) {
             geometry_msgs::msg::PoseStamped ps_out;
             tf2::doTransform(ps, ps_out, transform);
@@ -417,12 +415,8 @@ void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometr
                              (double)cumulative_length);
     }
 }
-// gps_waypoint constructor implementation
+// gps_waypoint constructor implementation example
 /* gps_waypoint: */
 gps_waypoint::gps_waypoint(double lon, double lat, const std::string& method, double radius)
     : longitude_(lon), latitude_(lat), method_(method), radius_(radius) {}
 
-// Register node as a component
-// todo chat why are we evening using this here
-#include "rclcpp_components/register_node_macro.hpp"
-RCLCPP_COMPONENTS_REGISTER_NODE(yet_another_gps_publisher)
