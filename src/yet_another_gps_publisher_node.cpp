@@ -419,4 +419,3 @@ void yet_another_gps_publisher::global_ekf_callback(const nav_msgs::msg::Odometr
 /* gps_waypoint: */
 gps_waypoint::gps_waypoint(double lon, double lat, const std::string& method, double radius)
     : longitude_(lon), latitude_(lat), method_(method), radius_(radius) {}
-
