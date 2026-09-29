@@ -1,0 +1,6 @@
+# Test waypoints for circle generator
+# Format: longitude latitude spline_type [radius]
+-83.231343 42.318858 linear
+-83.231316 42.318874 circle 5.0
+-83.231286 42.318890 circle -5.0
+-83.231258 42.318905 linear
